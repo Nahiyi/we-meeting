@@ -27,7 +27,7 @@ spring:
       add-mappings: false
   datasource:
     # 数据库配置
-    url: jdbc:mysql://localhost:3306/easymeeting?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf8&autoReconnect=true&allowMultiQueries=true\
+    url: jdbc:mysql://localhost:3306/easymeeting?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf8&autoReconnect=true&allowMultiQueries=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
