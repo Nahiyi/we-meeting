@@ -1,0 +1,81 @@
+server:
+  # 应用服务 WEB 访问端口
+  port: 6060
+  servlet:
+    context-path: /api
+    session:
+      # session过期时间 60M 一个小时
+      timeout: PT60M
+ws:
+  port: 6061
+
+spring:
+  application:
+    name: easymeeting
+  mvc:
+    favicon:
+      # 处理favicon
+      enable: false
+    #错误页处理
+    throw-exception-if-no-handler-found: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+  web:
+    resources:
+      add-mappings: false
+  datasource:
+    # 数据库配置
+    url: jdbc:mysql://localhost:3306/easymeeting?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf8&autoReconnect=true&allowMultiQueries=true\
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: HikariCPDatasource
+      minimum-idle: 5
+      idle-timeout: 180000
+      maximum-pool-size: 10
+      auto-commit: true
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+  redis:
+    # Spring redis配置
+    database: 0
+    host: 127.0.0.1
+    port: 6379
+    jedis:
+      pool:
+        # 连接池最大连接数（使用负值表示没有限制）
+        max-active: 20
+        # 连接池最大阻塞等待时间（使用负值表示没有限制）
+        max-wait: -1
+        # 连接池中的最大空闲连接
+        max-idle: 10
+        # 连接池中的最小空闲连接
+        min-idle: 0
+    # 连接超时时间（毫秒）
+    timeout: 2000
+  rabbitmq:
+    # rabbitmq配置
+    host: localhost
+    port: 5672
+
+messaging:
+  handle:
+    # 消息处理方案 可选 rabbitmq 或 redis
+    channel: redis
+
+project:
+  # 项目文件、日志等目录
+  folder: D:/easymeeting/
+
+logging:
+  level:
+    root: info
+    cn.clazs.easymeeting: debug
+
+admin:
+  # 超级管理员id
+  emails: test@qq.com

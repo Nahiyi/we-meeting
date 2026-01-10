@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration scan="true" scanPeriod="10 minutes">
+    <!-- 控制台日志输出 -->
+    <appender name="stdot" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss,GMT+8} %highlight(%-5level) %cyan(%logger) %magenta([%M]) %yellow([%L]) ->
+                %msg%n
+            </pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <springProperty scope="context" name="log.path" source="project.folder"/>
+    <springProperty scope="context" name="log.root.level" source="log.root.level"/>
+
+    <property name="LOG_FOLDER" value="logs"/>
+    <property name="LOG_FILE_NAME" value="easymeeting.log"/>
+
+    <!-- 文件日志输出 - 支持滚动归档 -->
+    <appender name="file" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 当前日志文件路径：D:/easymeeting/logs/easymeeting.log -->
+        <file>${log.path}/${LOG_FOLDER}/${LOG_FILE_NAME}</file>
+
+        <!-- 滚动策略：基于时间和大小的双重策略 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 归档文件命名模式：easymeeting.log.20260110.0 -->
+            <FileNamePattern>${log.path}/${LOG_FOLDER}/${LOG_FILE_NAME}.%d{yyyyMMdd}.%i</FileNamePattern>
+            <!-- 应用启动时自动清理过期的历史日志 -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            <!-- 基于大小和时间的触发策略 -->
+            <TimeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <!-- 单个日志文件最大20MB，超过后自动创建新文件 -->
+                <MaxFileSize>20MB</MaxFileSize>
+            </TimeBasedFileNamingAndTriggeringPolicy>
+            <!-- 保留最近30天的日志，超过30天的自动删除 -->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <!-- 日志格式编码器（文件中不需要颜色） -->
+        <encoder>
+            <charset>utf-8</charset>
+            <!-- 日志格式：时间 [级别][类名][方法名][行号]-> 消息 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss,GMT+8} [%p][%c][%M][%L]-> %m%n</pattern>
+        </encoder>
+
+        <!-- 是否追加到现有日志文件 -->
+        <!-- false: 每次启动清空日志重新开始 -->
+        <!-- true: 每次启动追加到现有日志 -->
+        <append>false</append>
+
+        <!-- 谨慎模式 -->
+        <!-- false: 性能更好，不支持多JVM并发写入 -->
+        <!-- true: 支持多JVM写入同一文件，但性能较差 -->
+        <prudent>false</prudent>
+    </appender>
+
+    <logger name="org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener"
+            level="error"/>
+    <logger name="org.redisson.connection.DNSMonitor" level="error"/>
+    <logger name="com.zaxxer.hikari" level="info"/>
+    <logger name="io.lettuce.core" level="info"/>
+    <logger name="org.springframework.data.redis" level="info"/>
+    <root level="${log.root.level}">
+        <appender-ref ref="stdot"/>
+        <appender-ref ref="file"/>
+    </root>
+
+</configuration>
