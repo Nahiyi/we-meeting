@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>3.4.0</version>
         <relativePath/>
     </parent>
 
@@ -20,26 +20,26 @@
     <description>easymeeting</description>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <skipTests>true</skipTests>
 
-        <springboot.version>2.7.18</springboot.version>
-        <mybatis-plus.version>3.5.3.2</mybatis-plus.version>
-        <logback.version>1.2.10</logback.version>
-        <mysql.version>8.0.23</mysql.version>
-        <aspectjweaver.version>1.9.4</aspectjweaver.version>
-        <okhttp3.version>3.2.0</okhttp3.version>
-        <fastjson.version>1.2.66</fastjson.version>
-        <commons.lang3.version>3.4</commons.lang3.version>
-        <commons.codec.version>1.9</commons.codec.version>
-        <commons.io.version>2.5</commons.io.version>
+        <springboot.version>3.4.0</springboot.version>
+        <mybatis.version>3.0.3</mybatis.version>
+        <logback.version>1.5.12</logback.version>
+        <mysql.version>8.0.33</mysql.version>
+        <aspectjweaver.version>1.9.21</aspectjweaver.version>
+        <okhttp3.version>4.12.0</okhttp3.version>
+        <fastjson.version>2.0.43</fastjson.version>
+        <commons.lang3.version>3.14.0</commons.lang3.version>
+        <commons.codec.version>1.16.0</commons.codec.version>
+        <commons.io.version>2.15.1</commons.io.version>
         <captcha.verion>1.6.2</captcha.verion>
-        <netty.version>4.1.50.Final</netty.version>
-        <redisson.version>3.12.3</redisson.version>
-        <lombok.version>1.18.22</lombok.version>
+        <netty.version>4.1.104.Final</netty.version>
+        <redisson.version>3.25.2</redisson.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
 
     <dependencies>
@@ -68,12 +68,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!--<dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>-->
 
-        <!--mybatis-plus-->
+        <!--mybatis-->
         <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>${mybatis-plus.version}</version>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>${mybatis.version}</version>
         </dependency>
 
         <!-- MySQL数据库 -->
@@ -109,6 +113,12 @@
             <version>${fastjson.version}</version>
         </dependency>
 
+        <!--jackson for redis serialization-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!--apache common-->
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -133,6 +143,13 @@
             <groupId>com.github.whvcse</groupId>
             <artifactId>easy-captcha</artifactId>
             <version>${captcha.verion}</version>
+        </dependency>
+
+        <!--JavaScript引擎 (JDK 15+需要单独引入，用于easy-captcha算术验证码)-->
+        <dependency>
+            <groupId>org.openjdk.nashorn</groupId>
+            <artifactId>nashorn-core</artifactId>
+            <version>15.4</version>
         </dependency>
 
         <!--netty-->
@@ -160,16 +177,61 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
+
+        <!--JWT-->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.3</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.3</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.3</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.2.6.RELEASE</version>
                 <configuration>
-                    <mainClass>cn.clazs.easymeeting.EasymeetingApplication</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

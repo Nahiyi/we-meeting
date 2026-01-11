@@ -1,17 +1,17 @@
 package cn.clazs.easymeeting.entity.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Size;
 import java.io.Serializable;
 
 /**
  * 注册请求DTO
  */
 @Data
-public class RegisterDto implements Serializable {
+public class RegisterDTO implements Serializable {
 
     @NotEmpty(message = "邮箱不能为空")
     @Email(message = "邮箱格式不正确")

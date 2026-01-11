@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.UserInfo">
+        <id column="user_id" property="userId"/>
+        <result column="email" property="email"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="sex" property="sex"/>
+        <result column="password" property="password"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="last_off_time" property="lastOffTime"/>
+        <result column="meeting_no" property="meetingNo"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        user_id, email, nick_name, sex, password, status, create_time, last_login_time, last_off_time, meeting_no
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO user_info (user_id, email, nick_name, sex, password, status, create_time, meeting_no)
+        VALUES (#{userId}, #{email}, #{nickName}, #{sex}, #{password}, #{status}, #{createTime}, #{meetingNo})
+    </insert>
+
+    <update id="updateById">
+        UPDATE user_info
+        <set>
+            <if test="nickName != null">nick_name = #{nickName},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
+            <if test="lastOffTime != null">last_off_time = #{lastOffTime},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE user_info SET password = #{password} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateLastLoginTime">
+        UPDATE user_info SET last_login_time = #{lastLoginTime} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateLastOffTime">
+        UPDATE user_info SET last_off_time = #{lastOffTime} WHERE user_id = #{userId}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM user_info WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByEmail" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM user_info WHERE email = #{email}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM user_info
+        <where>
+            <if test="nickName != null and nickName != ''">
+                AND nick_name LIKE CONCAT('%', #{nickName}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCount" resultType="int">
+        SELECT COUNT(*) FROM user_info
+        <where>
+            <if test="nickName != null and nickName != ''">
+                AND nick_name LIKE CONCAT('%', #{nickName}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <delete id="deleteById">
+        DELETE
+        FROM user_info
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

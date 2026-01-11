@@ -1,6 +1,6 @@
 package cn.clazs.easymeeting.config;
 
-import cn.clazs.easymeeting.util.StringTools;
+import cn.clazs.easymeeting.util.StringUtil;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -23,7 +23,7 @@ public class AppConfig {
     private String adminEmails;
 
     public String getProjectFolder() {
-        if (StringTools.isEmpty(projectFolder) && !projectFolder.endsWith("/")) {
+        if (StringUtil.isEmpty(projectFolder) && !projectFolder.endsWith("/")) {
             projectFolder = projectFolder + "/";
         }
         return projectFolder;

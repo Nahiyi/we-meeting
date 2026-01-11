@@ -20,19 +20,20 @@
         <!-- 当前日志文件路径：D:/easymeeting/logs/easymeeting.log -->
         <file>${log.path}/${LOG_FOLDER}/${LOG_FILE_NAME}</file>
 
-        <!-- 滚动策略：基于时间和大小的双重策略 -->
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <!-- 滚动策略：基于时间和大小的双重策略：SizeAndTimeBasedRollingPolicy -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <!-- 归档文件命名模式：easymeeting.log.20260110.0 -->
-            <FileNamePattern>${log.path}/${LOG_FOLDER}/${LOG_FILE_NAME}.%d{yyyyMMdd}.%i</FileNamePattern>
-            <!-- 应用启动时自动清理过期的历史日志 -->
-            <cleanHistoryOnStart>true</cleanHistoryOnStart>
-            <!-- 基于大小和时间的触发策略 -->
-            <TimeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <!-- 单个日志文件最大20MB，超过后自动创建新文件 -->
-                <MaxFileSize>20MB</MaxFileSize>
-            </TimeBasedFileNamingAndTriggeringPolicy>
+            <!-- %d{yyyyMMdd}: 日期 -->
+            <!-- %i: 文件索引（当同一天文件超过大小时递增） -->
+            <fileNamePattern>${log.path}/${LOG_FOLDER}/${LOG_FILE_NAME}.%d{yyyyMMdd}.%i</fileNamePattern>
+            <!-- 单个日志文件最大20MB，超过后自动创建新文件 -->
+            <maxFileSize>20MB</maxFileSize>
             <!-- 保留最近30天的日志，超过30天的自动删除 -->
             <maxHistory>30</maxHistory>
+            <!-- 应用启动时自动清理过期的历史日志 -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            <!-- 总日志文件大小限制（可选） -->
+            <totalSizeCap>5GB</totalSizeCap>
         </rollingPolicy>
 
         <!-- 日志格式编码器（文件中不需要颜色） -->

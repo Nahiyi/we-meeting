@@ -1,8 +1,11 @@
 package cn.clazs.easymeeting.entity.vo;
 
+import lombok.Data;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Data
 public class PaginationResultVO<T> {
     private Integer totalCount;
     private Integer pageSize;
@@ -33,45 +36,5 @@ public class PaginationResultVO<T> {
     }
 
     public PaginationResultVO() {
-    }
-
-    public Integer getTotalCount() {
-        return totalCount;
-    }
-
-    public void setTotalCount(Integer totalCount) {
-        this.totalCount = totalCount;
-    }
-
-    public Integer getPageSize() {
-        return pageSize;
-    }
-
-    public void setPageSize(Integer pageSize) {
-        this.pageSize = pageSize;
-    }
-
-    public Integer getPageNo() {
-        return pageNo;
-    }
-
-    public void setPageNo(Integer pageNo) {
-        this.pageNo = pageNo;
-    }
-
-    public Integer getPageTotal() {
-        return pageTotal;
-    }
-
-    public void setPageTotal(Integer pageTotal) {
-        this.pageTotal = pageTotal;
-    }
-
-    public List<T> getList() {
-        return list;
-    }
-
-    public void setList(List<T> list) {
-        this.list = list;
     }
 }

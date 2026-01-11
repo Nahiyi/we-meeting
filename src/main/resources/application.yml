@@ -12,12 +12,6 @@ ws:
 spring:
   application:
     name: easymeeting
-  mvc:
-    favicon:
-      # 处理favicon
-      enable: false
-    #错误页处理
-    throw-exception-if-no-handler-found: true
   servlet:
     multipart:
       max-file-size: 15MB
@@ -40,27 +34,39 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
       connection-test-query: SELECT 1
-  redis:
-    # Spring redis配置
-    database: 0
-    host: 127.0.0.1
-    port: 6379
-    jedis:
-      pool:
-        # 连接池最大连接数（使用负值表示没有限制）
-        max-active: 20
-        # 连接池最大阻塞等待时间（使用负值表示没有限制）
-        max-wait: -1
-        # 连接池中的最大空闲连接
-        max-idle: 10
-        # 连接池中的最小空闲连接
-        min-idle: 0
-    # 连接超时时间（毫秒）
-    timeout: 2000
+  data:
+    redis:
+      # Spring redis配置
+      host: localhost
+      port: 6379
+      jedis:
+        pool:
+          # 连接池最大连接数（使用负值表示没有限制）
+          max-active: 20
+          # 连接池最大阻塞等待时间（使用负值表示没有限制）
+          max-wait: -1
+          # 连接池中的最大空闲连接
+          max-idle: 10
+          # 连接池中的最小空闲连接
+          min-idle: 0
+      # 连接超时时间（毫秒）
+      timeout: 2000
   rabbitmq:
     # rabbitmq配置
     host: localhost
     port: 5672
+
+# MyBatis配置
+mybatis:
+  # Mapper XML文件位置
+  mapper-locations: classpath:mapper/*.xml
+  # 实体类别名包路径
+  type-aliases-package: cn.clazs.easymeeting.entity.po
+  configuration:
+    # 驼峰命名转换
+    map-underscore-to-camel-case: true
+    # 日志输出
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 messaging:
   handle:

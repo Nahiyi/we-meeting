@@ -5,13 +5,13 @@ import org.springframework.beans.BeanUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CopyUtils {
-    public static <T, S> List<T> copyList(List<S> sList, Class<T> classz) {
-        List<T> list = new ArrayList<T>();
+public class CopyUtil {
+    public static <T, S> List<T> copyList(List<S> sList, Class<T> clazz) {
+        List<T> list = new ArrayList<>();
         for (S s : sList) {
             T t = null;
             try {
-                t = classz.newInstance();
+                t = clazz.newInstance();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -21,10 +21,10 @@ public class CopyUtils {
         return list;
     }
 
-    public static <T, S> T copy(S s, Class<T> classz) {
+    public static <T, S> T copy(S s, Class<T> clazz) {
         T t = null;
         try {
-            t = classz.newInstance();
+            t = clazz.newInstance();
         } catch (Exception e) {
             e.printStackTrace();
         }

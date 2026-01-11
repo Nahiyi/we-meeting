@@ -1,13 +1,12 @@
 package cn.clazs.easymeeting.util;
 
-import cn.clazs.easymeeting.constant.Constants;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 
-public class StringTools {
+public class StringUtil {
 
     // 将字符串的首字母转换为大写
     public static String upperCaseFirstLetter(String field) {
@@ -36,6 +35,14 @@ public class StringTools {
         return str.trim().isEmpty();
     }
 
+    /**
+     * 生成12位用户ID
+     * @return 12位随机字符串
+     */
+    public static String generateUserId() {
+        return getRandomString(12);
+    }
+
     public static String getRandomNumber(Integer count) {
         return RandomStringUtils.random(count, false, true);
     }
@@ -45,12 +52,12 @@ public class StringTools {
     }
 
     public static String encodeMd5(String originString) {
-        return StringTools.isEmpty(originString) ? null : DigestUtils.md5Hex(originString);
+        return isEmpty(originString) ? null : DigestUtils.md5Hex(originString);
     }
 
     // 返回长度为10的随机数作为个人会议号或者系统生成的会议号
-    public static String getMeetingNoOrMeetingId() {
-        return StringTools.getRandomNumber(Constants.LENGTH_10);
+    public static String generateMeetingNo() {
+        return StringUtil.getRandomNumber(10);
     }
 
     public static String cleanHtmlTag(String content) {
