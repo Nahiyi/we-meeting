@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket测试 客户端</title>
+    <style>
+        /* 全局样式重置和基础设置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 主容器 */
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        /* 标题样式 */
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 600;
+            position: relative;
+        }
+
+        h1::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 3px;
+            background: #2563eb;
+            margin: 10px auto 0;
+            border-radius: 3px;
+        }
+
+        /* 输入组样式 */
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        /* 输入框样式 */
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background: #f9fafb;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background: white;
+        }
+
+        /* 按钮通用样式 */
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* 连接区域样式 */
+        .connect-area {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        #tokenInput {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        #connectBtn {
+            background-color: #2563eb;
+            color: white;
+            white-space: nowrap;
+        }
+
+        #connectBtn:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        /* 状态显示样式 */
+        #status {
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+
+        #status::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #d1d5db;
+        }
+
+        /* 消息输入区域 */
+        .message-input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        #messageInput {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        #sendBtn {
+            background-color: #10b981;
+            color: white;
+            white-space: nowrap;
+        }
+
+        #sendBtn:hover {
+            background-color: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        /* 消息列表样式 */
+        #messages {
+            height: 300px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9fafb;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f9fafb;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #f9fafb;
+            border-radius: 3px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* 消息气泡样式 */
+        .message {
+            margin-bottom: 12px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 85%;
+            line-height: 1.4;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .server-message {
+            background-color: #eff6ff;
+            color: #1e40af;
+            border-bottom-left-radius: 2px;
+            margin-right: auto;
+        }
+
+        .client-message {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-bottom-right-radius: 2px;
+            margin-left: auto;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 576px) {
+            .container {
+                padding: 20px;
+            }
+
+            .connect-area, .message-input-area {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            #messages {
+                height: 250px;
+            }
+        }
+
+        /* 状态颜色变化（配合JS逻辑） */
+        #status.connected {
+            background-color: #ecfdf5;
+            color: #065f46;
+        }
+
+        #status.connected::before {
+            background-color: #10b981;
+        }
+
+        #status.error {
+            background-color: #fef2f2;
+            color: #991b1b;
+        }
+
+        #status.error::before {
+            background-color: #ef4444;
+        }
+
+        #status.closed {
+            background-color: #fffbeb;
+            color: #92400e;
+        }
+
+        #status.closed::before {
+            background-color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>WebSocket 客户端</h1>
+
+    <div class="input-group connect-area">
+        <div style="flex: 1;">
+            <label for="tokenInput">Token</label>
+            <input type="text" id="tokenInput" placeholder="请输入 token" value="your_token_here">
+        </div>
+        <button id="connectBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            连接 WebSocket
+        </button>
+    </div>
+
+    <div id="status">状态: 未连接</div>
+
+    <div class="message-input-area">
+        <input type="text" id="messageInput" placeholder="输入消息，按回车发送..." />
+        <button id="sendBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 2L11 13"></path>
+                <path d="M22 2v6l-10 10"></path>
+                <path d="M22 2a10 10 0 0 0-10 10"></path>
+            </svg>
+            发送消息
+        </button>
+    </div>
+
+    <div id="messages">
+        <div class="message server-message">连接成功后，服务器消息会显示在这里</div>
+    </div>
+</div>
+
+<script>
+  let socket = null;
+  let isConnected = false;
+
+  document.getElementById('connectBtn').addEventListener('click', function() {
+    const token = document.getElementById('tokenInput').value.trim();
+
+    if (!token) {
+      alert('请先输入 token');
+      return;
+    }
+
+    const wsUrl = `ws://localhost:6061/ws?token=${encodeURIComponent(token)}`;
+    console.log(`尝试连接到: ${wsUrl}`);
+
+    try {
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = function(event) {
+        console.log('WebSocket 连接已建立');
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = '状态: 已连接';
+        statusEl.className = 'connected';
+        isConnected = true;
+
+        // 发送连接成功的消息
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message server-message';
+        messageDiv.textContent = '✅ 连接成功！';
+        document.getElementById('messages').appendChild(messageDiv);
+      };
+
+      socket.onmessage = function(event) {
+        console.log('收到服务器消息:', event.data);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message server-message';
+        messageDiv.textContent = '服务器说: ' + event.data;
+        document.getElementById('messages').appendChild(messageDiv);
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+      };
+
+      socket.onerror = function(error) {
+        console.error('WebSocket 错误:', error);
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = '状态: 连接错误';
+        statusEl.className = 'error';
+        isConnected = false;
+      };
+
+      socket.onclose = function(event) {
+        console.log('WebSocket 连接已关闭', event.code, event.reason);
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = '状态: 已断开连接';
+        statusEl.className = 'closed';
+        isConnected = false;
+      };
+
+    } catch (error) {
+      console.error('创建 WebSocket 失败:', error);
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = '状态: 创建 WebSocket 失败';
+      statusEl.className = 'error';
+    }
+  });
+
+  document.getElementById('sendBtn').addEventListener('click', function() {
+    if (!isConnected) {
+      alert('请先连接 WebSocket');
+      return;
+    }
+
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+
+    if (!message) {
+      alert('请输入消息内容');
+      return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message client-message';
+    messageDiv.textContent = '你发送: ' + message;
+    document.getElementById('messages').appendChild(messageDiv);
+    document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+
+    // 发送消息到服务器
+    socket.send(message);
+    messageInput.value = '';
+  });
+
+  // 支持回车发送消息
+  document.getElementById('messageInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('sendBtn').click();
+    }
+  });
+</script>
+</body>
+</html>
