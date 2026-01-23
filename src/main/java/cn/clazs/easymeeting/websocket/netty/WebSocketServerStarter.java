@@ -1,9 +1,9 @@
 package cn.clazs.easymeeting.websocket.netty;
 
 import cn.clazs.easymeeting.config.AppConfig;
-import cn.clazs.easymeeting.websocket.handler.HeartBeatHandler;
-import cn.clazs.easymeeting.websocket.handler.TextWebSocketHandler;
-import cn.clazs.easymeeting.websocket.handler.TokenValidationHandler;
+import cn.clazs.easymeeting.websocket.netty.handler.HeartBeatHandler;
+import cn.clazs.easymeeting.websocket.netty.handler.TextBizWebSocketHandler;
+import cn.clazs.easymeeting.websocket.netty.handler.TokenValidationHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -35,7 +35,7 @@ public class WebSocketServerStarter implements Runnable {
 
     private final AppConfig appConfig;
     private final TokenValidationHandler tokenValidationHandler;
-    private final TextWebSocketHandler textWebSocketHandler;
+    private final TextBizWebSocketHandler textBizWebSocketHandler;
 
     @Override
     public void run() {
@@ -61,7 +61,7 @@ public class WebSocketServerStarter implements Runnable {
                     // WebSocket协议处理器
                     pipeline.addLast(new WebSocketServerProtocolHandler("/ws", 10000L));
                     // 自定义处理WebSocket文本帧的处理器
-                    pipeline.addLast(textWebSocketHandler);
+                    pipeline.addLast(textBizWebSocketHandler);
                 }
             });
 

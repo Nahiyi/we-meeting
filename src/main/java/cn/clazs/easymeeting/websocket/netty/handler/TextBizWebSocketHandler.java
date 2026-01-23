@@ -1,4 +1,4 @@
-package cn.clazs.easymeeting.websocket.handler;
+package cn.clazs.easymeeting.websocket.netty.handler;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ChannelHandler.Sharable
 @Slf4j
-public class TextWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
+public class TextBizWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         log.info("有新的连接加入...");

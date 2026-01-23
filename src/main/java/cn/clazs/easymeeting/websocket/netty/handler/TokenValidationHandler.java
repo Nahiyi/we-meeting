@@ -1,4 +1,4 @@
-package cn.clazs.easymeeting.websocket.handler;
+package cn.clazs.easymeeting.websocket.netty.handler;
 
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.redis.RedisComponent;
