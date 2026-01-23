@@ -33,6 +33,7 @@
         <aspectjweaver.version>1.9.21</aspectjweaver.version>
         <okhttp3.version>4.12.0</okhttp3.version>
         <fastjson.version>2.0.43</fastjson.version>
+        <fastjson2.version>2.0.60</fastjson2.version>
         <commons.lang3.version>3.14.0</commons.lang3.version>
         <commons.codec.version>1.16.0</commons.codec.version>
         <commons.io.version>2.15.1</commons.io.version>
@@ -107,10 +108,16 @@
         </dependency>
 
         <!--fastjson-->
-        <dependency>
+        <!--<dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
+        </dependency>-->
+        <!--fastjson2-->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>${fastjson2.version}</version>
         </dependency>
 
         <!--jackson for redis serialization-->
