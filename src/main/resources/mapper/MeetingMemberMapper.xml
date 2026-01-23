@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.MeetingMemberMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.MeetingMember">
+        <id column="meeting_id" property="meetingId"/>
+        <result column="user_id" property="userId"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="last_join_time" property="lastJoinTime"/>
+        <result column="status" property="status"/>
+        <result column="member_type" property="memberType"/>
+        <result column="meeting_status" property="meetingStatus"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        meeting_id, user_id, nick_name, last_join_time, status, member_type, meeting_status
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO meeting_member (meeting_id, user_id, nick_name, last_join_time, status, member_type, meeting_status)
+        VALUES (#{meetingId}, #{userId}, #{nickName}, #{lastJoinTime}, #{status}, #{memberType}, #{meetingStatus})
+    </insert>
+
+    <update id="updateByMeetingIdAndUserId">
+        UPDATE meeting_member
+        <set>
+            <if test="nickName != null">nick_name = #{nickName},</if>
+            <if test="lastJoinTime != null">last_join_time = #{lastJoinTime},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="memberType != null">member_type = #{memberType},</if>
+            <if test="meetingStatus != null">meeting_status = #{meetingStatus},</if>
+        </set>
+        WHERE meeting_id = #{meetingId} AND user_id = #{userId}
+    </update>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_member WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByMeetingIdAndUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_member
+        WHERE meeting_id = #{meetingId} AND user_id = #{userId}
+    </select>
+
+    <select id="selectByMeetingId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_member WHERE meeting_id = #{meetingId}
+    </select>
+
+    <delete id="deleteByUserId">
+        DELETE
+        FROM meeting_member
+        WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByMeetingId">
+        DELETE
+        FROM meeting_member
+        WHERE meeting_id = #{meetingId}
+    </delete>
+
+</mapper>

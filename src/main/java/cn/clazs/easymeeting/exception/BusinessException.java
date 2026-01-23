@@ -1,12 +1,12 @@
 package cn.clazs.easymeeting.exception;
 
-import cn.clazs.easymeeting.entity.enums.ResponseCodeEnum;
+import cn.clazs.easymeeting.entity.enums.ResponseCode;
 import lombok.Getter;
 
-public class BusinessException extends Exception {
+public class BusinessException extends RuntimeException {
 
     @Getter
-    private ResponseCodeEnum codeEnum;
+    private ResponseCode codeEnum;
 
     @Getter
     private Integer code;
@@ -27,7 +27,7 @@ public class BusinessException extends Exception {
         super(e);
     }
 
-    public BusinessException(ResponseCodeEnum codeEnum) {
+    public BusinessException(ResponseCode codeEnum) {
         super(codeEnum.getMsg());
         this.codeEnum = codeEnum;
         this.code = codeEnum.getCode();

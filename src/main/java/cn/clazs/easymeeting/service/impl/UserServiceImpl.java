@@ -4,7 +4,7 @@ import cn.clazs.easymeeting.config.AppConfig;
 import cn.clazs.easymeeting.entity.dto.LoginDTO;
 import cn.clazs.easymeeting.entity.dto.RegisterDTO;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
-import cn.clazs.easymeeting.entity.enums.UserStatusEnum;
+import cn.clazs.easymeeting.entity.enums.UserStatus;
 import cn.clazs.easymeeting.entity.po.UserInfo;
 import cn.clazs.easymeeting.entity.vo.UserInfoVO;
 import cn.clazs.easymeeting.exception.BusinessException;
@@ -43,7 +43,7 @@ public class UserServiceImpl implements UserService {
         userInfo.setPassword(StringUtil.encodeMd5(dto.getPassword()));
         userInfo.setCreateTime(LocalDateTime.now());
         userInfo.setMeetingNo(StringUtil.generateMeetingNo());
-        userInfo.setStatus(UserStatusEnum.ENABLED.getCode());
+        userInfo.setStatus(UserStatus.ENABLED.getCode());
         this.userMapper.insert(userInfo);
     }
 
@@ -58,7 +58,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("账号或者密码不正确");
         }
 
-        if (UserStatusEnum.DISABLED.getCode().equals(userInfo.getStatus())) {
+        if (UserStatus.DISABLED.getCode().equals(userInfo.getStatus())) {
             throw new BusinessException("账号已禁用");
         }
 

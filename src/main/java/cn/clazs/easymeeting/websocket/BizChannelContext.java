@@ -61,29 +61,28 @@ public class BizChannelContext {
             oldChannel.attr(USER_ID_KEY).set(null);
             oldChannel.attr(USER_TOKEN_INFO_KEY).set(null);
             oldChannel.close();
+        }
 
-            // 如果userInfo为null，根据userId从Redis获取token信息
-            if (userInfo == null) {
-                String token = redisComponent.getTokenByUserId(userId);
-                if (token != null) {
-                    userInfo = redisComponent.getUserTokenInfo(token);
-                }
+        // 如果userInfo为null，根据userId从Redis获取token信息
+        if (userInfo == null) {
+            String token = redisComponent.getTokenByUserId(userId);
+            if (token != null) {
+                userInfo = redisComponent.getUserTokenInfo(token);
             }
+        }
 
-            // 建立三向映射
-            channel.attr(USER_ID_KEY).set(userId);              // Channel -> UserId
-            channel.attr(USER_TOKEN_INFO_KEY).set(userInfo);    // Channel -> UserTokenInfoDTO
-            USER_CONTEXT_MAP.put(userId, channel);              // UserId -> Channel
+        // 建立三向映射
+        channel.attr(USER_ID_KEY).set(userId);              // Channel -> UserId
+        channel.attr(USER_TOKEN_INFO_KEY).set(userInfo);    // Channel -> UserTokenInfoDTO
+        USER_CONTEXT_MAP.put(userId, channel);              // UserId -> Channel
 
-            log.info("用户: {} 已添加到在线列表，ChannelId: {}", userId, channel.id().asShortText());
+        log.info("用户: {} 已添加到在线列表，ChannelId: {}", userId, channel.id().asShortText());
 
-
-            // 如果用户正在会议中，自动加入会议房间
-            if (userInfo != null && userInfo.getCurrentMeetingId() != null) {
-                String meetingId = userInfo.getCurrentMeetingId();
-                joinMeetingRoom(meetingId, channel);
-                log.info("用户: {} 自动加入会议房间: {}", userId, meetingId);
-            }
+        // 如果用户正在会议中，自动加入会议房间
+        if (userInfo != null && userInfo.getCurrentMeetingId() != null) {
+            String meetingId = userInfo.getCurrentMeetingId();
+            joinMeetingRoom(meetingId, channel);
+            log.info("用户: {} 自动加入会议房间: {}", userId, meetingId);
         }
     }
 
@@ -94,27 +93,69 @@ public class BizChannelContext {
         addToContext(userId, channel, null);
     }
 
+    /**
+     * 根据Channel移除连接（连接断开时使用）
+     * 注意：这里不更新lastOffTime，因为断开可能只是退出会议而非退出登录
+     */
+    public void removeByChannel(Channel channel) {
+        String userId = channel.attr(USER_ID_KEY).get();
+        if (userId == null) {
+            // 已被清理过，直接返回（幂等性保护）
+            return;
+        }
+
+        // 清除Channel->userId绑定，防止重复处理
+        channel.attr(USER_ID_KEY).set(null);
+
+        // 从会议房间移除
+        UserTokenInfoDTO userInfo = channel.attr(USER_TOKEN_INFO_KEY).get();
+        if (userInfo != null && userInfo.getCurrentMeetingId() != null) {
+            leaveMeetingRoom(userInfo.getCurrentMeetingId(), channel);
+        }
+        // 清除Channel->userToken绑定
+        channel.attr(USER_TOKEN_INFO_KEY).set(null);
+
+        // 只有当前Channel匹配时才移除，防止误删新连接
+        USER_CONTEXT_MAP.remove(userId, channel);
+
+        log.info("用户: {} 连接已断开，ChannelId: {}", userId, channel.id().asShortText());
+    }
+
+    /**
+     * 根据Channel获取userId
+     */
+    public String getUserId(Channel channel) {
+        return channel.attr(USER_ID_KEY).get();
+    }
+
+    /**
+     * 根据Channel获取用户完整信息
+     */
+    public UserTokenInfoDTO getUserInfo(Channel channel) {
+        return channel.attr(USER_TOKEN_INFO_KEY).get();
+    }
+
     // =========================== 消息发送相关方法 ===========================
 
     /**
      * 发送消息（根据类型路由到群组或个人）
      */
-    public void sendMessage(MessageSendDTO<?> messageSendDto) {
-        if (messageSendDto == null) {
+    public void sendMessage(MessageSendDTO messageSendDTO) {
+        if (messageSendDTO == null) {
             return;
         }
-        MessageSendToType sendToType = messageSendDto.getMessageSendToType();
+        MessageSendToType sendToType = messageSendDTO.getMessageSendToType();
         if (MessageSendToType.GROUP == sendToType) {
-            sendMsgToGroup(messageSendDto);
+            sendMsgToGroup(messageSendDTO);
         } else if (MessageSendToType.USER == sendToType) {
-            sendMsgToUser(messageSendDto);
+            sendMsgToUser(messageSendDTO);
         }
     }
 
     /**
      * 发送消息到群组（会议房间）
      */
-    private void sendMsgToGroup(MessageSendDTO<?> messageSendDTO) {
+    private void sendMsgToGroup(MessageSendDTO messageSendDTO) {
         String meetingId = messageSendDTO.getMeetingId();
         if (StringUtil.isEmpty(meetingId)) {
             log.warn("发送群组消息失败：meetingId 为空");
@@ -135,7 +176,7 @@ public class BizChannelContext {
     /**
      * 发送消息到指定用户
      */
-    private void sendMsgToUser(MessageSendDTO<?> messageSendDTO) {
+    private void sendMsgToUser(MessageSendDTO messageSendDTO) {
         String receiveUserId = messageSendDTO.getReceiveUserId();
         if (StringUtil.isEmpty(receiveUserId)) {
             log.warn("发送个人消息失败：receiveUserId 为空");

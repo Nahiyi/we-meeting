@@ -1,7 +1,7 @@
 package cn.clazs.easymeeting.entity.dto;
 
 import cn.clazs.easymeeting.entity.enums.MessageSendToType;
-import cn.clazs.easymeeting.entity.enums.MessageTypeEnum;
+import cn.clazs.easymeeting.entity.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
-public class MessageSendDTO<T> implements Serializable {
+public class MessageSendDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -18,9 +18,7 @@ public class MessageSendDTO<T> implements Serializable {
     /** 会议ID */
     private String meetingId;
     /** 消息类型 */
-    private MessageTypeEnum messageType;
-    /** 消息内容 */
-    private T messageContent;
+    private MessageType messageType;
     /** 发送人ID */
     private String sendUserId;
     /** 发送人昵称 */

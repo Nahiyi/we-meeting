@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
-public enum MessageTypeEnum {
+public enum MessageType {
     INIT(0, "连接ws获取信息"),
     ADD_MEETING_ROOM(1, "加入房间"),
     PEER(2, "发送peer"),
@@ -34,11 +34,11 @@ public enum MessageTypeEnum {
     /**
      * 根据 type 值获取枚举
      */
-    public static MessageTypeEnum getByType(Integer type) {
+    public static MessageType getByType(Integer type) {
         if (type == null) {
             return null;
         }
-        for (MessageTypeEnum e : values()) {
+        for (MessageType e : values()) {
             if (e.type.equals(type)) {
                 return e;
             }
@@ -46,8 +46,8 @@ public enum MessageTypeEnum {
         return null;
     }
 
-    public MessageTypeEnum getMessageType() {
-        for (MessageTypeEnum e : MessageTypeEnum.values()) {
+    public MessageType getMessageType() {
+        for (MessageType e : MessageType.values()) {
             if (e.type.equals(this.type)) {
                 return e;
             }

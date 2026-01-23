@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.MeetingInfoMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.MeetingInfo">
+        <id column="meeting_id" property="meetingId"/>
+        <result column="meeting_no" property="meetingNo"/>
+        <result column="meeting_name" property="meetingName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="join_type" property="joinType"/>
+        <result column="join_password" property="joinPassword"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        meeting_id, meeting_no, meeting_name, create_time, create_user_id, join_type, join_password, start_time, end_time, status
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO meeting_info (meeting_id, meeting_no, meeting_name, create_time, create_user_id, join_type, join_password, start_time, end_time, status)
+        VALUES (#{meetingId}, #{meetingNo}, #{meetingName}, #{createTime}, #{createUserId}, #{joinType}, #{joinPassword}, #{startTime}, #{endTime}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE meeting_info
+        <set>
+            <if test="meetingNo != null">meeting_no = #{meetingNo},</if>
+            <if test="meetingName != null">meeting_name = #{meetingName},</if>
+            <if test="joinType != null">join_type = #{joinType},</if>
+            <if test="joinPassword != null">join_password = #{joinPassword},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE meeting_id = #{meetingId}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM meeting_info WHERE meeting_id = #{meetingId}
+    </select>
+
+    <select id="selectByMeetingNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM meeting_info WHERE meeting_no = #{meetingNo}
+    </select>
+
+    <!-- 根据会议号查询正在进行的会议（status=0），按创建时间倒序，取最新的一条 -->
+    <select id="selectRunningMeetingByMeetingNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> 
+        FROM meeting_info 
+        WHERE meeting_no = #{meetingNo} AND status = 0
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByCreateUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM meeting_info WHERE create_user_id = #{createUserId}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM meeting_info
+        <where>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM meeting_info WHERE meeting_id = #{meetingId}
+    </delete>
+
+    <!-- ==================== 分页查询历史会议 ==================== -->
+    <!-- mm.status = 1 表示 NORMAL 状态，过滤掉已删除、退出、被踢出、被拉黑的会议成员 -->
+
+    <!-- 查询所有历史会议（我创建的 + 我参加的，成员状态为正常），使用 UNION 优化性能 -->
+    <select id="selectAllMeetings" resultMap="BaseResultMap">
+        SELECT * FROM (
+            SELECT mi.meeting_id, mi.meeting_no, mi.meeting_name, mi.create_time, 
+                   mi.create_user_id, mi.join_type, mi.join_password, mi.start_time, mi.end_time, mi.status
+            FROM meeting_info mi
+            WHERE mi.create_user_id = #{userId}
+            UNION
+            SELECT mi.meeting_id, mi.meeting_no, mi.meeting_name, mi.create_time, 
+                   mi.create_user_id, mi.join_type, mi.join_password, mi.start_time, mi.end_time, mi.status
+            FROM meeting_info mi
+            INNER JOIN meeting_member mm ON mi.meeting_id = mm.meeting_id
+            WHERE mm.user_id = #{userId} AND mm.status = 1
+        ) AS combined
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countAllMeetings" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM (
+            SELECT mi.meeting_id FROM meeting_info mi WHERE mi.create_user_id = #{userId}
+            UNION
+            SELECT mi.meeting_id FROM meeting_info mi
+            INNER JOIN meeting_member mm ON mi.meeting_id = mm.meeting_id
+            WHERE mm.user_id = #{userId} AND mm.status = 1
+        ) AS combined
+    </select>
+
+    <!-- 查询我创建的会议 -->
+    <select id="selectCreatedMeetings" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM meeting_info
+        WHERE create_user_id = #{userId}
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countCreatedMeetings" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM meeting_info WHERE create_user_id = #{userId}
+    </select>
+
+    <!-- 查询我参加的会议（不包括我创建的，成员状态为正常） -->
+    <select id="selectJoinedMeetings" resultMap="BaseResultMap">
+        SELECT mi.meeting_id,
+               mi.meeting_no,
+               mi.meeting_name,
+               mi.create_time,
+               mi.create_user_id,
+               mi.join_type,
+               mi.join_password,
+               mi.start_time,
+               mi.end_time,
+               mi.status
+        FROM meeting_info mi
+                 INNER JOIN meeting_member mm ON mi.meeting_id = mm.meeting_id
+        WHERE mm.user_id = #{userId}
+          AND mi.create_user_id != #{userId}
+          AND mm.status = 1
+        ORDER BY mi.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countJoinedMeetings" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM meeting_info mi
+        INNER JOIN meeting_member mm ON mi.meeting_id = mm.meeting_id
+        WHERE mm.user_id = #{userId} AND mi.create_user_id != #{userId} AND mm.status = 1
+    </select>
+
+</mapper>

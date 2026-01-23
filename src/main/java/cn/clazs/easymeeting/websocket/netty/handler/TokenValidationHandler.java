@@ -3,6 +3,7 @@ package cn.clazs.easymeeting.websocket.netty.handler;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.util.StringUtil;
+import cn.clazs.easymeeting.websocket.BizChannelContext;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class TokenValidationHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final RedisComponent redisComponent;
+    private final BizChannelContext bizChannelContext;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
@@ -47,19 +49,18 @@ public class TokenValidationHandler extends SimpleChannelInboundHandler<FullHttp
             return;
         }
 
-
-        log.info("用户: {} ({}) 验证通过，准备握手", userTokenInfo.getNickName(), userTokenInfo.getUserId());
+        log.info("用户: {} ({}) 验证通过，准备ws握手", userTokenInfo.getNickName(), userTokenInfo.getUserId());
 
         // 重写 URI，欺骗后续的 WebSocketServerProtocolHandler
         // 原始是 /ws?token=xxx，必须改成 /ws，否则握手处理器不认
         request.setUri("/ws");
 
+        // 连接校验通过，添加映射到上下文中维护
+        bizChannelContext.addToContext(userTokenInfo.getUserId(), ctx.channel(), userTokenInfo);
+
+        log.debug("上下文添加完毕：{}", bizChannelContext.getUserId(ctx.channel()));
         // SCIH会自动release一次，防止非法参数，需要手动retain引用+1
         ctx.fireChannelRead(request.retain());
-
-        log.debug("fired");
-
-        // TODO 连接成功后的初始化工作
     }
 
     /**

@@ -55,7 +55,7 @@ public class WebSocketServerStarter implements Runnable {
                     // HTTP消息聚合器
                     pipeline.addLast(new HttpObjectAggregator(65536));
                     // 三个参数：读超时阈值（客户端心跳）、写超时阈值
-                    pipeline.addLast(new IdleStateHandler(10, 0, 0));
+                    pipeline.addLast(new IdleStateHandler(60, 0, 0));
                     pipeline.addLast(new HeartBeatHandler());
                     pipeline.addLast(tokenValidationHandler);
                     // WebSocket协议处理器
