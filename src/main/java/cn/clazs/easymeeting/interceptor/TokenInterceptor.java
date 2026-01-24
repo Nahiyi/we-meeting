@@ -1,5 +1,6 @@
 package cn.clazs.easymeeting.interceptor;
 
+import cn.clazs.easymeeting.context.UserContext;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.entity.vo.ResponseVO;
 import cn.clazs.easymeeting.redis.RedisComponent;
@@ -19,9 +20,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class TokenInterceptor implements HandlerInterceptor {
 
     private final RedisComponent redisComponent;
-
-    // 存储当前请求的用户信息，供 Controller 使用
-    public static final String CURRENT_USER = "currentUser";
 
     // Token 续期阈值：剩余 1 天时自动续期
     private static final long RENEW_THRESHOLD_SECONDS = 24 * 60 * 60;
@@ -51,8 +49,8 @@ public class TokenInterceptor implements HandlerInterceptor {
             log.debug("Token 已自动续期，用户：{}", userInfo.getUserId());
         }
 
-        // 将用户信息存入 request，供后续使用
-        request.setAttribute(CURRENT_USER, userInfo);
+        // 将用户信息存入 UserContext，供后续使用
+        UserContext.setCurrentUser(userInfo);
 
         return true;
     }
