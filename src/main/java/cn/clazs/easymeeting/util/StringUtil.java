@@ -28,11 +28,24 @@ public class StringUtil {
         return field.substring(0, 1).toLowerCase() + field.substring(1);
     }
 
-    public static boolean isEmpty(String str) {
-        if (null == str || "".equals(str) || "null".equals(str) || "\u0000".equals(str)) {
+    public static boolean isEmpty(CharSequence cs) {
+        if (cs == null) {
             return true;
         }
-        return str.trim().isEmpty();
+        int length = cs.length();
+        if (length == 0) {
+            return true;
+        }
+        for (int i = 0; i < length; i++) {
+            if (!Character.isWhitespace(cs.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isNotEmpty(CharSequence cs) {
+        return !isEmpty(cs);
     }
 
     /**

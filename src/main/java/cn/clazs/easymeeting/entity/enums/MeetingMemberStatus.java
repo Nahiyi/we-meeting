@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+/**
+ * 会议中成员的状态枚举
+ */
 @Getter
 @AllArgsConstructor
 public enum MeetingMemberStatus {

@@ -1,8 +1,11 @@
 package cn.clazs.easymeeting.websocket;
 
+import cn.clazs.easymeeting.entity.dto.MeetingMemberDTO;
+import cn.clazs.easymeeting.entity.dto.MemberJoinMeetingDTO;
 import cn.clazs.easymeeting.entity.dto.MessageSendDTO;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.entity.enums.MessageSendToType;
+import cn.clazs.easymeeting.entity.enums.MessageType;
 import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.util.StringUtil;
 import com.alibaba.fastjson2.JSON;
@@ -16,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -119,6 +123,13 @@ public class BizChannelContext {
         USER_CONTEXT_MAP.remove(userId, channel);
 
         log.info("用户: {} 连接已断开，ChannelId: {}", userId, channel.id().asShortText());
+    }
+
+    /**
+     * 根据 userId 获取 Channel
+     */
+    public Channel getChannel(String userId) {
+        return USER_CONTEXT_MAP.get(userId);
     }
 
     /**
@@ -229,6 +240,91 @@ public class BizChannelContext {
                 MEETING_ROOM_CONTEXT_MAP.remove(meetingId);
                 log.info("会议房间: {} 已清空并销毁", meetingId);
             }
+        }
+    }
+
+    /**
+     * 发送退出会议消息并清理 Channel
+     * 先发送消息（确保用户还在房间内能收到），再从房间移除 Channel
+     *
+     * @param messageSendDTO 退出消息
+     * @param userId 退出的用户ID
+     */
+    public void sendExitMessageAndCleanup(MessageSendDTO messageSendDTO, String userId) {
+        String meetingId = messageSendDTO.getMeetingId();
+        if (StringUtil.isEmpty(meetingId) || StringUtil.isEmpty(userId)) {
+            log.warn("发送退出消息失败：meetingId 或 userId 为空");
+            return;
+        }
+
+        // 1. 先发送消息（此时用户还在房间内）
+        sendMessage(messageSendDTO);
+
+        // 2. 再从 WebSocket 房间移除 Channel
+        Channel channel = USER_CONTEXT_MAP.get(userId);
+        if (channel != null) {
+            leaveMeetingRoom(meetingId, channel);
+            // 更新 Channel 上的用户信息：置空
+            UserTokenInfoDTO channelUserInfo = channel.attr(USER_TOKEN_INFO_KEY).get();
+            if (channelUserInfo != null) {
+                channelUserInfo.setCurrentMeetingId(null);
+            }
+            log.info("用户 {} 已从会议房间 {} 移除", userId, meetingId);
+        }
+    }
+
+    /**
+     * 在本会议房间内，广播会议成员更新消息
+     * 当用户通过 WebSocket 连接并自动加入会议房间时调用
+     * 发送成员列表给房间内所有用户
+     */
+    public void broadcastMeetingMemberUpdate(String meetingId, String newUserId, String newUserNickName) {
+        // 获取会议成员列表
+        MeetingMemberDTO newMember = redisComponent.getMeetingMember(meetingId, newUserId);
+        List<MeetingMemberDTO> memberList = redisComponent.getMeetingMemberList(meetingId);
+
+        // 构建消息内容
+        MemberJoinMeetingDTO meetingJoinDTO = new MemberJoinMeetingDTO();
+        meetingJoinDTO.setNewMember(newMember);
+        meetingJoinDTO.setMeetingMemberList(memberList);
+
+        // 构建消息
+        MessageSendDTO messageSendDto = new MessageSendDTO();
+        messageSendDto.setMessageType(MessageType.ADD_MEETING_ROOM);
+        messageSendDto.setMeetingId(meetingId);
+        messageSendDto.setMessageSendToType(MessageSendToType.GROUP);
+        messageSendDto.setMessageContent(meetingJoinDTO); // 设置用户加入消息
+        messageSendDto.setSendUserId(newUserId);
+        messageSendDto.setSendUserNickName(newUserNickName);
+
+        // 广播给房间内所有用户
+        sendMessage(messageSendDto);
+        log.info("在房间 {} 广播会议成员更新消息，新成员: {}", meetingId, newUserNickName);
+    }
+
+    /**
+     * 关闭用户连接（主动踢人时使用）
+     * 注意：这里不更新 lastOffTime，单设备登录通过 Redis token 机制实现
+     */
+    public void closeContext(String userId) {
+        if (StringUtil.isEmpty(userId)) {
+            return;
+        }
+        Channel channel = USER_CONTEXT_MAP.get(userId);
+        if (channel != null) {
+            // 先从会议房间移除
+            UserTokenInfoDTO userInfo = channel.attr(USER_TOKEN_INFO_KEY).get();
+            if (userInfo != null && userInfo.getCurrentMeetingId() != null) {
+                leaveMeetingRoom(userInfo.getCurrentMeetingId(), channel);
+            }
+            // 清理映射
+            channel.attr(USER_ID_KEY).set(null);
+            channel.attr(USER_TOKEN_INFO_KEY).set(null);
+            USER_CONTEXT_MAP.remove(userId);
+
+            // 关闭连接
+            channel.close();
+            log.info("用户 {} 连接已关闭", userId);
         }
     }
 }

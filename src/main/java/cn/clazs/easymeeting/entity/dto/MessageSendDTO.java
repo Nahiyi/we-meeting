@@ -29,6 +29,8 @@ public class MessageSendDTO implements Serializable {
     private Long sendTime;
     /** 消息ID */
     private Long messageId;
+    /** 消息内容 */
+    private Object messageContent;
     /** 状态 */
     private Integer status;
     /** 文件名 */

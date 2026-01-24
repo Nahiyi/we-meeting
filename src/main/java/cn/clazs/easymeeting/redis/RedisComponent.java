@@ -1,12 +1,18 @@
 package cn.clazs.easymeeting.redis;
 
 import cn.clazs.easymeeting.constant.Constants;
+import cn.clazs.easymeeting.entity.dto.MeetingMemberDTO;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
+import cn.clazs.easymeeting.entity.enums.MeetingMemberStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -147,5 +153,91 @@ public class RedisComponent {
      */
     public Long getTokenTTL(String token) {
         return redisUtil.getExpire(Constants.REDIS_KEY_TOKEN + token);
+    }
+
+    // ==================== 会议相关 ====================
+
+    /**
+     * 用户入会，添加一条缓存记录
+     * 缓存结构：Hash
+     * key        ----->    hashKey    ----->      field
+     * 会议号(房间号)         入会用户ID             对应用户详情
+     */
+    public void addToMeeting(String meetingId, MeetingMemberDTO meetingMemberDTO) {
+        redisUtil.hSet(Constants.REDIS_KEY_MEETING_ROOM + meetingId, meetingMemberDTO.getUserId(), meetingMemberDTO);
+    }
+
+    public List<MeetingMemberDTO> getMeetingMemberList(String meetingId) {
+        // 获取会议室所有成员
+        Map<Object, Object> members = redisUtil.hGetAll(Constants.REDIS_KEY_MEETING_ROOM + meetingId);
+
+        if (members == null || members.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 转换为 List
+        return members.values().stream()
+                .map(obj -> (MeetingMemberDTO) obj)
+                .collect(Collectors.toList());
+    }
+
+    public MeetingMemberDTO getMeetingMember(String meetingId, String userId) {
+        return (MeetingMemberDTO) redisUtil.hGet(Constants.REDIS_KEY_MEETING_ROOM + meetingId, userId);
+    }
+
+    /**
+     * 从会议中移除单个成员
+     */
+    public void removeMeetingMember(String meetingId, String userId) {
+        redisUtil.hDelete(Constants.REDIS_KEY_MEETING_ROOM + meetingId, userId);
+    }
+
+    /**
+     * 清理整个会议的成员数据（结束会议时使用）
+     */
+    public void removeMeetingMembers(String meetingId) {
+        redisUtil.delete(Constants.REDIS_KEY_MEETING_ROOM + meetingId);
+    }
+
+    /**
+     * 指定用户退出指定会议，即删除哈希结构中的一条hashkey-field
+     */
+    public Boolean exitMeeting(String meetingId, String userId) {
+        MeetingMemberDTO meetingMemberDTO = getMeetingMember(meetingId, userId);
+        if (meetingMemberDTO == null) {
+            return false;
+        }
+        // 从会议成员列表中移除该用户
+        removeMeetingMember(meetingId, userId);
+        return true;
+    }
+
+    /**
+     * 添加会议邀请信息
+     * @param meetingId 会议ID
+     * @param userId 被邀请用户ID
+     */
+    public void addInviteInfo(String meetingId, String userId) {
+        redisUtil.set(Constants.REDIS_KEY_MEETING_INVITE + userId + ":" + meetingId,
+                meetingId, Constants.REDIS_EXPIRE_INVITE, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 获取会议邀请信息
+     * @param meetingId 会议ID
+     * @param userId 被邀请用户ID
+     * @return 会议ID（如果邀请存在）
+     */
+    public String getInviteInfo(String meetingId, String userId) {
+        return (String) redisUtil.get(Constants.REDIS_KEY_MEETING_INVITE + userId + ":" + meetingId);
+    }
+
+    /**
+     * 删除会议邀请信息（接受邀请后删除）
+     * @param meetingId 会议ID
+     * @param userId 被邀请用户ID
+     */
+    public void removeInviteInfo(String meetingId, String userId) {
+        redisUtil.delete(Constants.REDIS_KEY_MEETING_INVITE + userId + ":" + meetingId);
     }
 }

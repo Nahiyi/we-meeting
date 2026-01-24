@@ -1,7 +1,9 @@
 package cn.clazs.easymeeting.controller;
 
 import cn.clazs.easymeeting.context.UserContext;
+import cn.clazs.easymeeting.entity.dto.JoinMeetingDTO;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
+import cn.clazs.easymeeting.entity.enums.MeetingCreateDTO;
 import cn.clazs.easymeeting.entity.enums.MeetingMemberStatus;
 import cn.clazs.easymeeting.entity.enums.MeetingStatus;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
@@ -9,7 +11,6 @@ import cn.clazs.easymeeting.entity.po.MeetingMember;
 import cn.clazs.easymeeting.entity.vo.PageResult;
 import cn.clazs.easymeeting.entity.vo.ResponseVO;
 import cn.clazs.easymeeting.exception.BusinessException;
-import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.service.MeetingInfoService;
 import cn.clazs.easymeeting.service.MeetingMemberService;
 import cn.clazs.easymeeting.util.StringUtil;
@@ -31,7 +32,6 @@ import java.util.Optional;
 public class MeetingController {
 
     private final MeetingInfoService meetingInfoService;
-    private final RedisComponent redisComponent;
     private final MeetingMemberService meetingMemberService;
 
     /**
@@ -75,21 +75,64 @@ public class MeetingController {
     }
 
     /**
+     * 快速会议 - 创建会议
+     * 使用个人会议号还是系统生成，会议主题，是否需要会议密码
+     */
+    @PostMapping("/quickMeeting")
+    public ResponseVO<String> quickMeeting(@RequestBody @Validated MeetingCreateDTO meetingCreateDTO) {
+        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
+        if (currentUser.getCurrentMeetingId() != null) {
+            throw new BusinessException("你有未结束的会议，无法创建新的会议");
+        }
+        // 创建MeetingInfo实体类
+        MeetingInfo meetingInfo = new MeetingInfo();
+        meetingInfo.setMeetingName(meetingCreateDTO.getMeetingName());
+        // 会议号，若有就用用户传入的，无则使用用户的会议号
+        meetingInfo.setMeetingNo(meetingCreateDTO.getMeetingNoType() == 0 ? currentUser.getMeetingNo() : StringUtil.generateMeetingNo());
+        meetingInfo.setJoinPassword(meetingCreateDTO.getJoinPassword());
+        meetingInfo.setCreateUserId(currentUser.getUserId());
+
+        meetingInfoService.quickMeeting(meetingInfo, currentUser.getNickName());
+
+        return ResponseVO.success(meetingInfo.getMeetingId());
+    }
+
+    /**
      * 必须先通过preJoinMeeting接口验证，前端才能调用joinMeeting接口入会
      */
     @PostMapping("/preJoinMeeting")
     public ResponseVO<String> preJoinMeeting(@NotNull String meetingNo, @NotEmpty String nickName, String password) {
-        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
         meetingNo = meetingNo.replace(" ", "");
-        currentUser.setNickName(nickName);
-        String meetingId = meetingInfoService.preJoinMeeting(meetingNo, currentUser, password);
+        // 当前用户持有密码和会议号，欲加入指定会议
+        String meetingId = meetingInfoService.preJoinMeeting(meetingNo, nickName, password);
         return ResponseVO.success(meetingId);
+    }
+
+    /**
+     * 加入会议
+     */
+    @PostMapping("/joinMeeting")
+    public ResponseVO<Void> joinMeeting(@RequestBody JoinMeetingDTO joinMeetingDTO) {
+        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
+        // 验证用户是否已通过 preJoinMeeting
+        // currentMeetingId 在 preJoinMeeting 中设置，如果为空说明没有通过预验证
+        if (StringUtil.isEmpty(currentUser.getCurrentMeetingId())) {
+            throw new BusinessException("请先通过会议号加入会议");
+        }
+
+        // 校验通过后，从 token 获取用户信息，不信任前端传入，这样即使前端伪造 userId 也无效
+        joinMeetingDTO.setUserId(currentUser.getUserId());
+        joinMeetingDTO.setNickName(currentUser.getNickName());
+        joinMeetingDTO.setSex(currentUser.getSex());
+        joinMeetingDTO.setMeetingId(currentUser.getCurrentMeetingId());
+
+        meetingInfoService.joinMeeting(joinMeetingDTO);
+        return ResponseVO.success();
     }
 
     @GetMapping("/exitMeeting")
     public ResponseVO<Void> exitMeeting() {
-        UserTokenInfoDTO userTokenInfoDTO = UserContext.getCurrentUser();
-        meetingInfoService.exitMeetingRoom(userTokenInfoDTO, MeetingMemberStatus.EXIT_MEETING);
+        meetingInfoService.exitMeetingRoom();
         return ResponseVO.success();
     }
 

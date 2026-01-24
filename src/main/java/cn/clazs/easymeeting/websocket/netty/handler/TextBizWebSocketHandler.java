@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,10 +25,33 @@ import org.springframework.stereotype.Component;
 public class TextBizWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     private final BizChannelContext bizChannelContext;
+    // private final MessageDispatcher messageDispatcher;
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         log.info("有新的连接加入，ChannelId: {}", ctx.channel().id().asShortText());
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        // 监听 WebSocket 握手完成事件
+        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
+            log.info("WebSocket 握手完成，ChannelId: {}", ctx.channel().id().asShortText());
+
+            // 获取用户信息（在 TokenValidationHandler 中已设置）
+            UserTokenInfoDTO userInfo = bizChannelContext.getUserInfo(ctx.channel());
+            if (userInfo != null && userInfo.getCurrentMeetingId() != null) {
+                String meetingId = userInfo.getCurrentMeetingId();
+                String userId = userInfo.getUserId();
+                String nickName = userInfo.getNickName();
+
+                log.info("用户 {} 在会议 {} 中，广播成员列表", nickName, meetingId);
+
+                // 广播成员列表给房间内所有用户（包括新加入的用户）
+                bizChannelContext.broadcastMeetingMemberUpdate(meetingId, userId, nickName);
+            }
+        }
+        super.userEventTriggered(ctx, evt);
     }
 
     @Override
@@ -74,6 +98,8 @@ public class TextBizWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
                 log.warn("无法解析消息: {}", message);
                 return;
             }
+            // TODO 使用消息分发器处理（分发器会设置发送者信息并路由到对应处理器）
+            // messageDispatcher.dispatch(ctx, messageSendDto);
         } catch (Exception e) {
             log.error("处理消息失败: {}", message, e);
         }

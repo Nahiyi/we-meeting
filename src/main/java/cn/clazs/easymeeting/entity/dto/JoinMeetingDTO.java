@@ -3,7 +3,7 @@ package cn.clazs.easymeeting.entity.dto;
 import lombok.Data;
 
 /**
- * 加入会议请求DTO
+ * 某用户加入某会议的请求DTO
  */
 @Data
 public class JoinMeetingDTO {
