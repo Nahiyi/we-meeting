@@ -29,12 +29,12 @@ public class AsyncConfig {
      * - keepAliveSeconds: 60，空闲线程存活时间
      * - threadNamePrefix: userInfo-async-，线程名前缀，便于日志追踪和问题排查
      */
-    @Bean(name = "userInfoAsyncExecutor")
+    @Bean(name = "asyncTaskExecutor")
     public Executor userInfoAsyncExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         // 核心线程数：一直存活的线程数
-        executor.setCorePoolSize(2);
+        executor.setCorePoolSize(3);
 
         // 最大线程数：线程池最多创建的线程数
         executor.setMaxPoolSize(5);
@@ -43,7 +43,7 @@ public class AsyncConfig {
         executor.setQueueCapacity(100);
 
         // 线程名前缀：方便在日志中识别和追踪
-        executor.setThreadNamePrefix("userInfo-async-");
+        executor.setThreadNamePrefix("async-task-");
 
         // 空闲线程存活时间（秒）：超过核心线程数的空闲线程在60秒后会被回收
         executor.setKeepAliveSeconds(60);
@@ -62,7 +62,7 @@ public class AsyncConfig {
         // 初始化线程池
         executor.initialize();
 
-        log.info("用户信息异步线程池初始化完成 - coreSize: {}, maxSize: {}, queueCapacity: {}",
+        log.info("异步任务服务线程池初始化完成 - coreSize: {}, maxSize: {}, queueCapacity: {}",
                 executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
 
         return executor;

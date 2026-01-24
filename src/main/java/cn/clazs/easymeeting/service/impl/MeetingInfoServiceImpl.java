@@ -15,12 +15,14 @@ import cn.clazs.easymeeting.util.StringUtil;
 import cn.clazs.easymeeting.websocket.BizChannelContext;
 import io.netty.channel.Channel;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class MeetingInfoServiceImpl implements MeetingInfoService {
 
@@ -32,6 +34,8 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     private MeetingMemberMapper meetingMemberMapper;
     @Resource
     private RedisComponent redisComponent;
+    @Resource
+    private AsyncMeetingInfoServiceImpl asyncMeetingInfoService;
 
     @Override
     public MeetingInfo createMeeting(MeetingInfo meetingInfo) {
@@ -168,20 +172,14 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         // 加入 WebSocket 房间（底层ChannelGroup是Set实现，所以add天然也幂等）
         bizChannelContext.joinMeetingRoom(meetingId, bizChannelContext.getChannel(userId));
 
-        // 发送 WebSocket 消息通知其他成员
+        // 延迟发送 WebSocket 消息，确保前端有足够时间注册消息监听器
+        // 这解决了新加入用户收不到 ADD_MEETING_ROOM 消息的问题
         MemberJoinMeetingDTO memberJoinMeetingDTO = new MemberJoinMeetingDTO();
         memberJoinMeetingDTO.setNewMember(redisComponent.getMeetingMember(meetingId, userId));
         memberJoinMeetingDTO.setMeetingMemberList(redisComponent.getMeetingMemberList(meetingId));
 
-        MessageSendDTO messageSendDTO = new MessageSendDTO();
-        messageSendDTO.setMessageType(MessageType.ADD_MEETING_ROOM);
-        messageSendDTO.setMeetingId(meetingId);
-        messageSendDTO.setMessageSendToType(MessageSendToType.GROUP);
-        messageSendDTO.setMessageContent(memberJoinMeetingDTO);
-
-        // TODO 通过消息分发器发送消息
-        bizChannelContext.sendMessage(messageSendDTO);
-
+        // 使用异步方法延迟发送消息，避免阻塞主线程
+        asyncMeetingInfoService.delayedSendMemberJoinMessage(meetingId, memberJoinMeetingDTO);
     }
 
     /**
