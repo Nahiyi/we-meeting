@@ -46,7 +46,7 @@ public class AsyncUserServiceImpl {
      *
      * @param userInfo 用户信息
      */
-    @Async("userInfoAsyncExecutor")
+    @Async("asyncTaskExecutor")
     public void updateLogoutTime(UserInfo userInfo) {
         try {
             if (StringUtil.isEmpty(userInfo.getUserId())) {
