@@ -13,10 +13,10 @@ import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.service.MeetingInfoService;
 import cn.clazs.easymeeting.util.StringUtil;
 import cn.clazs.easymeeting.websocket.BizChannelContext;
-import cn.clazs.easymeeting.websocket.messaging.MessageHandler;
 import io.netty.channel.Channel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -274,8 +274,7 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
      * 用户退出会议
      */
     @Override
-    public void exitMeetingRoom() {
-        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
+    public void exitMeetingRoom(UserTokenInfoDTO currentUser, MeetingMemberStatus status) {
         String meetingId = currentUser.getCurrentMeetingId();
         if (StringUtil.isEmpty(meetingId)) {
             return;
@@ -294,20 +293,20 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         }
 
         // 3. 如果被拉黑，更新数据库中的成员状态
-        /* if (MeetingMemberStatus.BLACKLIST == status) {
+        if (MeetingMemberStatus.BLACKLIST == status) {
             MeetingMember meetingMember = meetingMemberMapper.selectByMeetingIdAndUserId(meetingId, userId);
             if (meetingMember != null) {
                 meetingMember.setStatus(MeetingMemberStatus.BLACKLIST.getStatus());
                 meetingMemberMapper.updateByMeetingIdAndUserId(meetingMember);
             }
-        } */
+        }
 
         // 4. 构建退出消息
-        List<MeetingMemberDTO> meetingMemberDtoList = redisComponent.getMeetingMemberList(meetingId);
+        List<MeetingMemberDTO> meetingMemberList = redisComponent.getMeetingMemberList(meetingId);
         MeetingExitDTO meetingExitDTO = new MeetingExitDTO();
-        meetingExitDTO.setMeetingMemberList(meetingMemberDtoList);
+        meetingExitDTO.setMeetingMemberList(meetingMemberList);
         meetingExitDTO.setExitUserId(userId);
-        // meetingExitDTO.setExitStatus(status);
+        meetingExitDTO.setExitStatus(status);
 
         MessageSendDTO messageSendDTO = new MessageSendDTO();
         messageSendDTO.setMessageType(MessageType.EXIT_MEETING_ROOM);
@@ -322,23 +321,38 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         // 6. 如果被拉黑或被踢出，可选择强制断开 WebSocket 连接
         // 注意：这会导致用户需要重新建立 WebSocket 连接
         // 如果不需要强制断开，可以注释掉这段代码
-        /* if (MeetingMemberStatus.BLACKLIST == status ||
+        if (MeetingMemberStatus.BLACKLIST == status ||
                 MeetingMemberStatus.KICK_OUT == status) {
-            // 强制关闭用户的 WebSocket 连接，同时清理 USER_CONTEXT_MAP
+            // 强制关闭用户的 WebSocket 连接，同时清理本机 USER_CONTEXT_MAP
             bizChannelContext.closeContext(userId);
-        } */
+        }
 
         // 7. 检查会议是否还有人，没人则自动结束会议
-        if (meetingMemberDtoList == null || meetingMemberDtoList.isEmpty()) {
+        if (meetingMemberList == null || meetingMemberList.isEmpty()) {
+            // 获取aop代理对象执行事务方法
+            MeetingInfoService serviceProxy = (MeetingInfoService) AopContext.currentProxy();
             // 自动结束会议时传入 null，跳过权限检查
-            // TODO 切面获取代理对象执行保障事务性
-            finishMeeting(meetingId, null);
+            serviceProxy.finishMeeting(meetingId, null);
         }
     }
 
     @Override
-    public void forceExitMeetingRoom(UserTokenInfoDTO userTokenInfoDTO, String userId, MeetingMemberStatus MeetingMemberStatus) {
-
+    public void forceExitMeetingRoom(UserTokenInfoDTO userTokenInfoDTO, String userId, MeetingMemberStatus status) {
+        // 检验操作的是不是会议创建者，只有主持人才可踢人和拉黑
+        MeetingInfo meetingInfo = meetingInfoMapper.selectById(userTokenInfoDTO.getCurrentMeetingId());
+        if (!meetingInfo.getCreateUserId().equals(userTokenInfoDTO.getUserId())) {
+            throw new BusinessException("你没有权限");
+        }
+        // 先通过 userId 获取 token，再获取 UserTokenInfoDto
+        String token = redisComponent.getTokenByUserId(userId);
+        if (token == null) {
+            throw new BusinessException("网络异常，用户不在线");
+        }
+        UserTokenInfoDTO userInfoDto = redisComponent.getUserTokenInfo(token);
+        if (userInfoDto == null) {
+            throw new BusinessException("用户信息不存在");
+        }
+        exitMeetingRoom(userInfoDto, status);
     }
 
     @Override

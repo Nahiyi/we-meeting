@@ -132,7 +132,7 @@ public class MeetingController {
 
     @GetMapping("/exitMeeting")
     public ResponseVO<Void> exitMeeting() {
-        meetingInfoService.exitMeetingRoom();
+        meetingInfoService.exitMeetingRoom(UserContext.getCurrentUser(), MeetingMemberStatus.EXIT_MEETING);
         return ResponseVO.success();
     }
 
