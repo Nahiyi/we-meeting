@@ -174,7 +174,7 @@ public class BizChannelContext {
         }
         ChannelGroup channelGroup = MEETING_ROOM_CONTEXT_MAP.get(meetingId);
         if (channelGroup == null || channelGroup.isEmpty()) {
-            log.warn("发送群组消息失败：会议房间 {} 不存在或为空", meetingId);
+            log.warn("发送群组消息失败：会议房间 {} 不存在或为空", meetingId); // 可能已是本服务器下最后一人离开
             return;
         }
         // 序列化消息并发送给房间内所有用户

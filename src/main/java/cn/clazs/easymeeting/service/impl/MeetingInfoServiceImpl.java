@@ -36,7 +36,7 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     @Resource
     private RedisComponent redisComponent;
     @Resource
-    private MessageHandler messageHandler;
+    private AsyncMeetingInfoServiceImpl asyncMeetingInfoService;
 
     @Override
     public MeetingInfo createMeeting(MeetingInfo meetingInfo) {
@@ -183,8 +183,9 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         messageSendDTO.setMeetingId(meetingId);
         messageSendDTO.setMessageSendToType(MessageSendToType.GROUP);
         messageSendDTO.setMessageContent(memberJoinMeetingDTO);
+
         // 发送 WebSocket 消息通知其他成员
-        messageHandler.sendMessage(messageSendDTO);
+        asyncMeetingInfoService.delayedSendMemberJoinMessage(messageSendDTO);
     }
 
     /**

@@ -5,6 +5,7 @@ import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.entity.enums.MessageSendToType;
 import cn.clazs.easymeeting.entity.enums.MessageType;
 import cn.clazs.easymeeting.websocket.BizChannelContext;
+import cn.clazs.easymeeting.websocket.handler.MessageDispatcher;
 import com.alibaba.fastjson2.JSON;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -25,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class TextBizWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     private final BizChannelContext bizChannelContext;
-    // private final MessageDispatcher messageDispatcher;
+    private final MessageDispatcher messageDispatcher;
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -83,23 +84,24 @@ public class TextBizWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame textWebSocketFrame) throws Exception {
         String message = textWebSocketFrame.text();
-        log.info("收到消息：{}", message);
-
         // 心跳消息直接响应，不经过分发器
         if ("ping".equals(message)) {
             ctx.channel().writeAndFlush(new TextWebSocketFrame("pong"));
             return;
         }
 
+        log.info("收到消息：{}", message);
+
         try {
-            // 解析消息
+            // 解析消息，封装websocket文本帧为MessageSendDTO对象用于后续发送
             MessageSendDTO messageSendDTO = JSON.parseObject(message, MessageSendDTO.class);
             if (messageSendDTO == null) {
                 log.warn("无法解析消息: {}", message);
                 return;
             }
-            // TODO 使用消息分发器处理（分发器会设置发送者信息并路由到对应处理器）
-            // messageDispatcher.dispatch(ctx, messageSendDto);
+
+            // 解耦于消息调度器执行调度，因为消息类型、发送相关都已封装
+            messageDispatcher.dispatch(ctx, messageSendDTO);
         } catch (Exception e) {
             log.error("处理消息失败: {}", message, e);
         }
