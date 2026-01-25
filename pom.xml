@@ -40,6 +40,7 @@
         <captcha.verion>1.6.2</captcha.verion>
         <netty.version>4.1.104.Final</netty.version>
         <redisson.version>3.25.2</redisson.version>
+        <redisson-starter.version>3.26.0</redisson-starter.version>
         <lombok.version>1.18.30</lombok.version>
     </properties>
 
@@ -166,10 +167,15 @@
             <version>${netty.version}</version>
         </dependency>
 
-        <dependency>
+        <!--<dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
             <version>${redisson.version}</version>
+        </dependency>-->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>${redisson-starter.version}</version>
         </dependency>
 
         <dependency>
