@@ -13,6 +13,7 @@ import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.service.MeetingInfoService;
 import cn.clazs.easymeeting.util.StringUtil;
 import cn.clazs.easymeeting.websocket.BizChannelContext;
+import cn.clazs.easymeeting.websocket.messaging.MessageHandler;
 import io.netty.channel.Channel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     @Resource
     private RedisComponent redisComponent;
     @Resource
-    private AsyncMeetingInfoServiceImpl asyncMeetingInfoService;
+    private MessageHandler messageHandler;
 
     @Override
     public MeetingInfo createMeeting(MeetingInfo meetingInfo) {
@@ -172,14 +173,18 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         // 加入 WebSocket 房间（底层ChannelGroup是Set实现，所以add天然也幂等）
         bizChannelContext.joinMeetingRoom(meetingId, bizChannelContext.getChannel(userId));
 
-        // 延迟发送 WebSocket 消息，确保前端有足够时间注册消息监听器
-        // 这解决了新加入用户收不到 ADD_MEETING_ROOM 消息的问题
+        // 延迟发送 WebSocket 消息（浏览器特殊原因），确保前端有足够时间注册消息监听器，解决新加入用户收不到 ADD_MEETING_ROOM 消息的问题
         MemberJoinMeetingDTO memberJoinMeetingDTO = new MemberJoinMeetingDTO();
         memberJoinMeetingDTO.setNewMember(redisComponent.getMeetingMember(meetingId, userId));
         memberJoinMeetingDTO.setMeetingMemberList(redisComponent.getMeetingMemberList(meetingId));
 
-        // 使用异步方法延迟发送消息，避免阻塞主线程
-        asyncMeetingInfoService.delayedSendMemberJoinMessage(meetingId, memberJoinMeetingDTO);
+        MessageSendDTO messageSendDTO = new MessageSendDTO();
+        messageSendDTO.setMessageType(MessageType.ADD_MEETING_ROOM);
+        messageSendDTO.setMeetingId(meetingId);
+        messageSendDTO.setMessageSendToType(MessageSendToType.GROUP);
+        messageSendDTO.setMessageContent(memberJoinMeetingDTO);
+        // 发送 WebSocket 消息通知其他成员
+        messageHandler.sendMessage(messageSendDTO);
     }
 
     /**
