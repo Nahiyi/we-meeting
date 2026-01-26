@@ -209,5 +209,38 @@ public class MeetingController {
         meetingInfoService.reserveJoinMeeting(meetingId, userTokenInfoDTO, password);
         return ResponseVO.success(null);
     }
+
+    /**
+     * 邀请联系人加入会议
+     *
+     * 邀请者必须在会议中，被邀请者必须是邀请者的好友
+     * 邀请信息会保存到 Redis，有效期 3 分钟
+     */
+    @PostMapping("/inviteContactToMeeting")
+    public ResponseVO<Void> inviteContactToMeeting(@RequestBody List<String> contactsId) {
+        if (contactsId == null || contactsId.isEmpty()) {
+            throw new BusinessException("邀请列表不能为空");
+        }
+        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
+        meetingInfoService.inviteContact(currentUser, contactsId);
+        return ResponseVO.success();
+    }
+
+    /**
+     * 接受会议邀请
+     *
+     * 被邀请用户接受邀请后，不需要输入密码，直接设置 currentMeetingId
+     * 然后前端跳转到会议页面，调用 joinMeeting 正式加入
+     *
+     * @param meetingId 会议ID
+     * @return 会议ID（供前端跳转使用）
+     */
+    @PostMapping("/acceptInvite")
+    public ResponseVO<String> acceptInvite(@RequestParam @NotEmpty String meetingId) {
+        UserTokenInfoDTO currentUser = UserContext.getCurrentUser();
+        meetingInfoService.acceptInvite(currentUser, meetingId);
+        // 返回 meetingId，前端可以用来跳转到会议页面
+        return ResponseVO.success(meetingId);
+    }
 }
 

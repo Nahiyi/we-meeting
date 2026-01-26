@@ -6,19 +6,24 @@ import cn.clazs.easymeeting.entity.enums.*;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
 import cn.clazs.easymeeting.entity.po.MeetingMember;
 import cn.clazs.easymeeting.entity.po.MeetingReserve;
+import cn.clazs.easymeeting.entity.po.UserContact;
 import cn.clazs.easymeeting.entity.vo.PageResult;
 import cn.clazs.easymeeting.exception.BusinessException;
 import cn.clazs.easymeeting.mapper.MeetingInfoMapper;
 import cn.clazs.easymeeting.mapper.MeetingMemberMapper;
 import cn.clazs.easymeeting.mapper.MeetingReserveMapper;
+import cn.clazs.easymeeting.mapper.UserContactMapper;
 import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.service.MeetingInfoService;
 import cn.clazs.easymeeting.util.StringUtil;
 import cn.clazs.easymeeting.websocket.BizChannelContext;
+import cn.clazs.easymeeting.websocket.messaging.MessageHandler;
 import io.netty.channel.Channel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -44,6 +50,12 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     private AsyncMeetingInfoServiceImpl asyncMeetingInfoService;
     @Resource
     private MeetingReserveMapper meetingReserveMapper;
+    @Resource
+    private UserContactMapper userContactMapper;
+
+    @Qualifier("redisMessageHandler")
+    @Autowired
+    private MessageHandler messageHandler;
 
     @Override
     public MeetingInfo createMeeting(MeetingInfo meetingInfo) {
@@ -484,13 +496,137 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         redisComponent.updateUserTokenInfo(userTokenInfoDTO);
     }
 
+    /**
+     * 邀请联系人加入会议
+     *
+     * 1. 验证邀请者是否在会议中
+     * 2. 验证被邀请者是否是邀请者的好友
+     * 3. 跳过已在会议中的用户
+     * 4. 保存邀请信息到 Redis
+     * 5. 发送 WebSocket 邀请消息给被邀请者
+     */
     @Override
     public void inviteContact(UserTokenInfoDTO userTokenInfoDTO, List<String> contactsId) {
+        if (contactsId == null || contactsId.isEmpty()) {
+            throw new BusinessException("邀请列表不能为空");
+        }
 
+        String currentMeetingId = userTokenInfoDTO.getCurrentMeetingId();
+        if (StringUtil.isEmpty(currentMeetingId)) {
+            throw new BusinessException("你当前不在会议中");
+        }
+
+        String userId = userTokenInfoDTO.getUserId();
+
+        // 获取当前用户的所有正常状态的联系人ID
+        Set<String> myContactIds = userContactMapper.selectNormalContactsByUserId(userId)
+                .stream()
+                .map(UserContact::getContactId)
+                .collect(Collectors.toSet());
+
+        // 验证并过滤出有效的联系人
+        for (String contactId : contactsId) {
+            if (!myContactIds.contains(contactId)) {
+                throw new BusinessException("用户 " + contactId + " 不是您的好友");
+            }
+        }
+
+        // 获取会议信息
+        MeetingInfo meetingInfo = meetingInfoMapper.selectById(currentMeetingId);
+        if (meetingInfo == null) {
+            throw new BusinessException("会议不存在");
+        }
+        if (MeetingStatus.FINISHED.getStatus().equals(meetingInfo.getStatus())) {
+            throw new BusinessException("会议已结束");
+        }
+
+        // 邀请每个联系人
+        for (String contactId : contactsId) {
+            // 检查用户是否已在会议中
+            MeetingMemberDTO meetingMemberDTO = redisComponent.getMeetingMember(currentMeetingId, contactId);
+            if (meetingMemberDTO != null &&
+                    MeetingMemberStatus.NORMAL == meetingMemberDTO.getStatus()) {
+                // 用户已在会议中，跳过
+                continue;
+            }
+
+            // 检查用户是否被拉黑
+            MeetingMember dbMember = meetingMemberMapper.selectByMeetingIdAndUserId(currentMeetingId, contactId);
+            if (dbMember != null &&
+                    MeetingMemberStatus.BLACKLIST.getStatus().equals(dbMember.getStatus())) {
+                // 用户被拉黑，跳过
+                continue;
+            }
+
+            // 保存邀请信息到 Redis
+            redisComponent.addInviteInfo(currentMeetingId, contactId);
+
+            // 构建邀请消息
+            MeetingInviteDTO meetingInviteDTO = new MeetingInviteDTO();
+            meetingInviteDTO.setMeetingId(currentMeetingId);
+            meetingInviteDTO.setMeetingName(meetingInfo.getMeetingName());
+            meetingInviteDTO.setInviteUserName(userTokenInfoDTO.getNickName());
+
+            // 发送 WebSocket 消息给被邀请者
+            MessageSendDTO messageSendDTO = new MessageSendDTO();
+            messageSendDTO.setMessageType(MessageType.INVITE_MESSAGE_MEETING);
+            messageSendDTO.setMeetingId(currentMeetingId);
+            messageSendDTO.setMessageSendToType(MessageSendToType.USER);
+            messageSendDTO.setSendUserId(userId);
+            messageSendDTO.setReceiveUserId(contactId);
+            messageSendDTO.setMessageContent(meetingInviteDTO);
+
+            // 使用消息处理器，实现扩服务器通信
+            messageHandler.sendMessage(messageSendDTO);
+        }
     }
 
+    /**
+     * 接受会议邀请
+     *
+     * 1. 验证邀请是否存在且有效
+     * 2. 验证会议是否存在且进行中
+     * 3. 检查用户是否有其他未结束的会议
+     * 4. 检查用户是否被拉黑
+     * 5. 设置 currentMeetingId 到 token（类似 preJoinMeeting）
+     * 6. 删除邀请信息
+     *
+     * 注意：被邀请用户不需要输入密码，直接加入
+     */
     @Override
     public void acceptInvite(UserTokenInfoDTO userTokenInfoDTO, String meetingId) {
+        String userId = userTokenInfoDTO.getUserId();
 
+        // 1. 验证邀请是否存在
+        String redisMeetingId = redisComponent.getInviteInfo(meetingId, userId);
+        if (redisMeetingId == null) {
+            throw new BusinessException("邀请已过期或您不在邀请名单中");
+        }
+
+        // 2. 验证会议是否存在且进行中
+        MeetingInfo meetingInfo = meetingInfoMapper.selectById(meetingId);
+        if (meetingInfo == null) {
+            throw new BusinessException("会议不存在");
+        }
+        if (MeetingStatus.FINISHED.getStatus().equals(meetingInfo.getStatus())) {
+            throw new BusinessException("会议已结束");
+        }
+
+        // 3. 检查用户是否有其他未结束的会议
+        if (StringUtil.isNotEmpty(userTokenInfoDTO.getCurrentMeetingId())
+                && !meetingId.equals(userTokenInfoDTO.getCurrentMeetingId())) {
+            throw new BusinessException("你有未结束的会议");
+        }
+
+        // 4. 检查用户是否被拉黑
+        checkMeetingJoin(meetingId, userId);
+
+        // 5. 设置 currentMeetingId 到 token（类似 preJoinMeeting 的效果）
+        // 这样用户后续调用 joinMeeting 时可以直接加入
+        userTokenInfoDTO.setCurrentMeetingId(meetingId);
+        redisComponent.updateUserTokenInfo(userTokenInfoDTO);
+
+        // 6. 删除邀请信息（一次性使用）
+        redisComponent.removeInviteInfo(meetingId, userId);
     }
 }

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.UserContactApplyMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.UserContactApply">
+        <id column="apply_id" property="applyId"/>
+        <result column="apply_user_id" property="applyUserId"/>
+        <result column="receive_user_id" property="receiveUserId"/>
+        <result column="last_apply_time" property="lastApplyTime"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        apply_id, apply_user_id, receive_user_id, last_apply_time, status
+    </sql>
+
+    <!-- 插入时不需要设置last_apply_time，数据库会自动设置为当前时间 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="applyId">
+        INSERT INTO user_contact_apply (apply_user_id, receive_user_id, status)
+        VALUES (#{applyUserId}, #{receiveUserId}, #{status})
+    </insert>
+
+    <!-- 插入或更新（利用唯一索引），重复申请时更新状态 -->
+    <insert id="insertOrUpdate" useGeneratedKeys="true" keyProperty="applyId">
+        INSERT INTO user_contact_apply (apply_user_id, receive_user_id, status)
+        VALUES (#{applyUserId}, #{receiveUserId}, #{status})
+        ON DUPLICATE KEY UPDATE status = #{status}
+    </insert>
+
+    <update id="updateById">
+        UPDATE user_contact_apply
+        <set>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE apply_id = #{applyId}
+    </update>
+
+    <!-- 根据唯一索引更新状态 -->
+    <update id="updateStatusByApplyUserIdAndReceiveUserId">
+        UPDATE user_contact_apply
+        SET status = #{status}
+        WHERE apply_user_id = #{applyUserId}
+          AND receive_user_id = #{receiveUserId}
+    </update>
+
+    <delete id="deleteById">
+        DELETE
+        FROM user_contact_apply
+        WHERE apply_id = #{applyId}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply WHERE apply_id = #{applyId}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply ORDER BY last_apply_time DESC
+    </select>
+
+    <select id="selectByApplyUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE apply_user_id = #{applyUserId}
+        ORDER BY last_apply_time DESC
+    </select>
+
+    <select id="selectByReceiveUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE receive_user_id = #{receiveUserId}
+        ORDER BY last_apply_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE status = #{status}
+        ORDER BY last_apply_time DESC
+    </select>
+
+    <select id="selectByApplyUserIdAndReceiveUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE apply_user_id = #{applyUserId} AND receive_user_id = #{receiveUserId}
+    </select>
+
+    <!-- 更新状态时不需要手动设置时间，数据库会自动更新 -->
+    <update id="updateStatus">
+        UPDATE user_contact_apply
+        SET status = #{status}
+        WHERE apply_id = #{applyId}
+    </update>
+
+    <select id="selectPendingByReceiveUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE receive_user_id = #{receiveUserId} AND status = 0
+        ORDER BY last_apply_time DESC
+    </select>
+
+    <select id="selectSentByApplyUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_contact_apply
+        WHERE apply_user_id = #{applyUserId}
+        ORDER BY last_apply_time DESC
+    </select>
+
+    <!-- 查询用户收到的申请（关联申请人昵称） -->
+    <select id="selectReceivedAppliesWithNickName" resultType="cn.clazs.easymeeting.entity.vo.UserContactApplyVO">
+        SELECT a.apply_id        AS applyId,
+               a.apply_user_id   AS applyUserId,
+               u.nick_name       AS applyUserNickName,
+               a.receive_user_id AS receiveUserId,
+               a.last_apply_time AS lastApplyTime,
+               a.status
+        FROM user_contact_apply a
+                 LEFT JOIN user_info u ON a.apply_user_id = u.user_id
+        WHERE a.receive_user_id = #{receiveUserId}
+        ORDER BY a.last_apply_time DESC
+    </select>
+
+</mapper>

@@ -19,8 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -203,6 +202,34 @@ public class BizChannelContext {
         String messageJson = JSON.toJSONString(messageSendDTO);
         channel.writeAndFlush(new TextWebSocketFrame(messageJson));
         log.info("消息已发送给用户: {}", receiveUserId);
+    }
+
+    /**
+     * 检查用户是否在线
+     */
+    public boolean isUserOnline(String userId) {
+        Channel channel = USER_CONTEXT_MAP.get(userId);
+        return channel != null && channel.isActive();
+    }
+
+    /**
+     * 批量检查用户在线状态
+     * @param userIds 用户ID列表
+     * @return Map<userId, isOnline>
+     */
+    public Map<String, Boolean> checkUsersOnline(List<String> userIds) {
+        Map<String, Boolean> result = new HashMap<>();
+        for (String userId : userIds) {
+            result.put(userId, isUserOnline(userId));
+        }
+        return result;
+    }
+
+    /**
+     * 获取所有在线用户ID
+     */
+    public Set<String> getOnlineUserIds() {
+        return new HashSet<>(USER_CONTEXT_MAP.keySet());
     }
 
     // =========================== 会议房间相关方法 ===========================
