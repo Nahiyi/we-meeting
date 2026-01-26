@@ -1,4 +1,4 @@
-package cn.clazs.easymeeting.entity.enums;
+package cn.clazs.easymeeting.entity.dto;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

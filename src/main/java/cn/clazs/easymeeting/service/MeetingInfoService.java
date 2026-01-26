@@ -6,7 +6,9 @@ import cn.clazs.easymeeting.entity.enums.MeetingMemberStatus;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
 import cn.clazs.easymeeting.entity.vo.PageResult;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface MeetingInfoService {
 
@@ -15,6 +17,13 @@ public interface MeetingInfoService {
     MeetingInfo updateMeeting(MeetingInfo meetingInfo);
 
     MeetingInfo getMeetingById(String meetingId);
+
+    /**
+     * 批量查询会议ID和会议号的映射关系
+     * @param meetingIds 会议ID集合
+     * @return Map<会议ID, 会议号>
+     */
+    Map<String, String> getMeetingIdAndNoMapByIds(Collection<String> meetingIds);
 
     MeetingInfo getMeetingByNo(String meetingNo);
 
@@ -51,6 +60,7 @@ public interface MeetingInfoService {
 
     void finishMeeting(String meetingId, String userId);
 
+    @Deprecated
     void reserveJoinMeeting(String meetingId, UserTokenInfoDTO UserTokenInfoDTO, String password);
 
     void inviteContact(UserTokenInfoDTO UserTokenInfoDTO, List<String> contactsId);

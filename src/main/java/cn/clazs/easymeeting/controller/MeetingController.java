@@ -2,8 +2,8 @@ package cn.clazs.easymeeting.controller;
 
 import cn.clazs.easymeeting.context.UserContext;
 import cn.clazs.easymeeting.entity.dto.JoinMeetingDTO;
+import cn.clazs.easymeeting.entity.dto.MeetingCreateDTO;
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
-import cn.clazs.easymeeting.entity.enums.MeetingCreateDTO;
 import cn.clazs.easymeeting.entity.enums.MeetingMemberStatus;
 import cn.clazs.easymeeting.entity.enums.MeetingStatus;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
@@ -208,37 +208,6 @@ public class MeetingController {
         userTokenInfoDTO.setNickName(nickName);
         meetingInfoService.reserveJoinMeeting(meetingId, userTokenInfoDTO, password);
         return ResponseVO.success(null);
-    }
-
-    /**
-     * 邀请联系人加入会议
-     * 邀请者必须在会议中，被邀请者必须是邀请者的好友
-     * 邀请信息会保存到 Redis，有效期 3 分钟
-     */
-    @PostMapping("/inviteContactToMeeting")
-    public ResponseVO<Void> inviteContactToMeeting(@RequestBody List<String> contactsId) {
-        if (contactsId == null || contactsId.isEmpty()) {
-            throw new BusinessException("邀请列表不能为空");
-        }
-        UserTokenInfoDTO userTokenInfoDTO = UserContext.getCurrentUser();
-        meetingInfoService.inviteContact(userTokenInfoDTO, contactsId);
-        return ResponseVO.success();
-    }
-
-    /**
-     * 接受会议邀请
-     * 被邀请用户接受邀请后，无需输入密码，直接设置 currentMeetingId
-     * 然后前端跳转到会议页面，调用 joinMeeting 正式加入
-     *
-     * @param meetingId 会议ID
-     * @return 会议ID（供前端跳转使用）
-     */
-    @PostMapping("/acceptInvite")
-    public ResponseVO<String> acceptInvite(@RequestParam @NotEmpty String meetingId) {
-        UserTokenInfoDTO userTokenInfoDTO = UserContext.getCurrentUser();
-        meetingInfoService.acceptInvite(userTokenInfoDTO, meetingId);
-        // 返回 meetingId，前端可以用来跳转到会议页面
-        return ResponseVO.success(meetingId);
     }
 }
 

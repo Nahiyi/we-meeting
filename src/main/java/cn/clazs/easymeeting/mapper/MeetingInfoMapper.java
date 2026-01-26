@@ -3,6 +3,7 @@ package cn.clazs.easymeeting.mapper;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface MeetingInfoMapper {
@@ -12,6 +13,13 @@ public interface MeetingInfoMapper {
     int updateById(MeetingInfo meetingInfo);
 
     MeetingInfo selectById(@Param("meetingId") String meetingId);
+
+    /**
+     * 批量查询会议信息
+     * @param meetingIds 会议ID集合
+     * @return 会议信息列表
+     */
+    List<MeetingInfo> selectByIds(@Param("meetingIds") Collection<String> meetingIds);
 
     MeetingInfo selectByMeetingNo(@Param("meetingNo") String meetingNo);
 

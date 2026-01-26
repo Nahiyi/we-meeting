@@ -42,6 +42,16 @@
         SELECT <include refid="Base_Column_List"/> FROM meeting_info WHERE meeting_id = #{meetingId}
     </select>
 
+    <!-- 批量查询会议信息 -->
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM meeting_info
+        WHERE meeting_id IN
+        <foreach collection="meetingIds" item="meetingId" open="(" separator="," close=")">
+            #{meetingId}
+        </foreach>
+    </select>
+
     <select id="selectByMeetingNo" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/> FROM meeting_info WHERE meeting_no = #{meetingNo}
     </select>

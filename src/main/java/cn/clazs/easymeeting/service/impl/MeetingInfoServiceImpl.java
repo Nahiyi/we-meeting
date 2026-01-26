@@ -5,10 +5,12 @@ import cn.clazs.easymeeting.entity.dto.*;
 import cn.clazs.easymeeting.entity.enums.*;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
 import cn.clazs.easymeeting.entity.po.MeetingMember;
+import cn.clazs.easymeeting.entity.po.MeetingReserve;
 import cn.clazs.easymeeting.entity.vo.PageResult;
 import cn.clazs.easymeeting.exception.BusinessException;
 import cn.clazs.easymeeting.mapper.MeetingInfoMapper;
 import cn.clazs.easymeeting.mapper.MeetingMemberMapper;
+import cn.clazs.easymeeting.mapper.MeetingReserveMapper;
 import cn.clazs.easymeeting.redis.RedisComponent;
 import cn.clazs.easymeeting.service.MeetingInfoService;
 import cn.clazs.easymeeting.util.StringUtil;
@@ -21,7 +23,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,6 +42,8 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     private RedisComponent redisComponent;
     @Resource
     private AsyncMeetingInfoServiceImpl asyncMeetingInfoService;
+    @Resource
+    private MeetingReserveMapper meetingReserveMapper;
 
     @Override
     public MeetingInfo createMeeting(MeetingInfo meetingInfo) {
@@ -53,6 +60,16 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     @Override
     public MeetingInfo getMeetingById(String meetingId) {
         return meetingInfoMapper.selectById(meetingId);
+    }
+
+    @Override
+    public Map<String, String> getMeetingIdAndNoMapByIds(Collection<String> meetingIds) {
+        if (meetingIds == null || meetingIds.isEmpty()) {
+            return Map.of();
+        }
+        List<MeetingInfo> meetingInfoList = meetingInfoMapper.selectByIds(meetingIds);
+        return meetingInfoList.stream()
+                .collect(Collectors.toMap(MeetingInfo::getMeetingId, MeetingInfo::getMeetingNo));
     }
 
     @Override
@@ -398,11 +415,11 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         }
 
         // 4.1 更新预约会议状态为已结束（如果该会议是从预约会议开始的）
-       /*  MeetingReserve meetingReserve = meetingReserveMapper.selectByRealMeetingId(meetingId);
+        MeetingReserve meetingReserve = meetingReserveMapper.selectByRealMeetingId(meetingId);
         if (meetingReserve != null) {
             meetingReserve.setStatus(MeetingReserveStatus.FINISHED.getStatus());
             meetingReserveMapper.updateById(meetingReserve);
-        } */
+        }
 
         // 5. 批量更新 TokenUserInfo（清除 currentMeetingId）并清理 WebSocket 房间
         if (memberList != null) {
@@ -428,9 +445,43 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         redisComponent.removeMeetingMembers(meetingId);
     }
 
+    /**
+     * 预约加入一个会议
+     * @param meetingId 会议ID
+     */
     @Override
     public void reserveJoinMeeting(String meetingId, UserTokenInfoDTO userTokenInfoDTO, String password) {
+        String userId = userTokenInfoDTO.getUserId();
 
+        // 1. 查询会议是否存在
+        MeetingInfo meetingInfo = meetingInfoMapper.selectById(meetingId);
+        if (meetingInfo == null) {
+            throw new BusinessException("会议不存在");
+        }
+
+        // 2. 检查会议状态
+        if (MeetingStatus.FINISHED.getStatus().equals(meetingInfo.getStatus())) {
+            throw new BusinessException("会议已结束");
+        }
+
+        // 3. 检查用户是否有未结束的其他会议
+        if (StringUtil.isNotEmpty(userTokenInfoDTO.getCurrentMeetingId())
+                && !meetingId.equals(userTokenInfoDTO.getCurrentMeetingId())) {
+            throw new BusinessException("你有未结束的会议");
+        }
+
+        // 4. 检查是否被拉黑
+        checkMeetingJoin(meetingId, userId);
+
+        // 5. 验证密码（如果需要）
+        if (MeetingJoinType.PASSWORD.getType().equals(meetingInfo.getJoinType())
+                && !meetingInfo.getJoinPassword().equals(password)) {
+            throw new BusinessException("密码错误");
+        }
+
+        // 6. 设置 currentMeetingId 到 token，此时用户已经有会议状态
+        userTokenInfoDTO.setCurrentMeetingId(meetingId);
+        redisComponent.updateUserTokenInfo(userTokenInfoDTO);
     }
 
     @Override

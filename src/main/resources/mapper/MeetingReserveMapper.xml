@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.MeetingReserveMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.MeetingReserve">
+        <id column="meeting_id" property="meetingId"/>
+        <result column="meeting_name" property="meetingName"/>
+        <result column="join_type" property="joinType"/>
+        <result column="join_password" property="joinPassword"/>
+        <result column="duration" property="duration"/>
+        <result column="start_time" property="startTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="status" property="status"/>
+        <result column="real_meeting_id" property="realMeetingId"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        meeting_id, meeting_name, join_type, join_password, duration, start_time, create_time, create_user_id, status, real_meeting_id
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO meeting_reserve (meeting_id, meeting_name, join_type, join_password, duration, start_time,
+                                     create_time, create_user_id, status, real_meeting_id)
+        VALUES (#{meetingId}, #{meetingName}, #{joinType}, #{joinPassword}, #{duration}, #{startTime}, #{createTime},
+                #{createUserId}, #{status}, #{realMeetingId})
+    </insert>
+
+    <update id="updateById">
+        UPDATE meeting_reserve
+        <set>
+            <if test="meetingName != null">meeting_name = #{meetingName},</if>
+            <if test="joinType != null">join_type = #{joinType},</if>
+            <if test="joinPassword != null">join_password = #{joinPassword},</if>
+            <if test="duration != null">duration = #{duration},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="realMeetingId != null">real_meeting_id = #{realMeetingId},</if>
+        </set>
+        WHERE meeting_id = #{meetingId}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve WHERE meeting_id = #{meetingId}
+    </select>
+
+    <select id="selectByCreateUserId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve WHERE create_user_id = #{createUserId} ORDER BY start_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve WHERE status = #{status} ORDER BY start_time ASC
+    </select>
+
+    <delete id="deleteById">
+        DELETE
+        FROM meeting_reserve
+        WHERE meeting_id = #{meetingId}
+    </delete>
+
+    <!-- 查询用户创建的预约会议（分页） -->
+    <select id="selectCreatedReserves" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve
+        WHERE create_user_id = #{userId}
+        ORDER BY start_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countCreatedReserves" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM meeting_reserve
+        WHERE create_user_id = #{userId}
+    </select>
+
+    <!-- 查询用户被邀请的预约会议（分页） -->
+    <select id="selectInvitedReserves" resultMap="BaseResultMap">
+        SELECT mr.meeting_id,
+               mr.meeting_name,
+               mr.join_type,
+               mr.join_password,
+               mr.duration,
+               mr.start_time,
+               mr.create_time,
+               mr.create_user_id,
+               mr.status
+        FROM meeting_reserve mr
+                 INNER JOIN meeting_reserve_member mrm ON mr.meeting_id = mrm.meeting_id
+        WHERE mrm.invite_user_id = #{userId}
+        ORDER BY mr.start_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countInvitedReserves" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM meeting_reserve mr
+                 INNER JOIN meeting_reserve_member mrm ON mr.meeting_id = mrm.meeting_id
+        WHERE mrm.invite_user_id = #{userId}
+    </select>
+
+    <!-- 查询用户创建的指定状态的预约会议（按开始时间倒序） -->
+    <select id="selectCreatedReservesByStatus" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve
+        WHERE create_user_id = #{userId} AND status = #{status}
+        ORDER BY start_time DESC
+    </select>
+
+    <!-- 查询用户今天的预约会议（创建的 + 被邀请的），使用 UNION 优化性能 -->
+    <select id="selectTodayReserves" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve
+        WHERE create_user_id = #{userId}
+        AND DATE(start_time) = CURDATE()
+        UNION
+        SELECT mr.meeting_id, mr.meeting_name, mr.join_type, mr.join_password, mr.duration,
+        mr.start_time, mr.create_time, mr.create_user_id, mr.status, mr.real_meeting_id
+        FROM meeting_reserve mr
+        INNER JOIN meeting_reserve_member mrm ON mr.meeting_id = mrm.meeting_id
+        WHERE mrm.invite_user_id = #{userId}
+        AND DATE(mr.start_time) = CURDATE()
+        ORDER BY start_time ASC
+    </select>
+
+    <!-- 根据实际会议ID查询预约会议 -->
+    <select id="selectByRealMeetingId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve
+        WHERE real_meeting_id = #{realMeetingId}
+    </select>
+
+</mapper>
