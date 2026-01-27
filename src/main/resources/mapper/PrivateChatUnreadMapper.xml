@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.PrivateChatUnreadMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.PrivateChatUnread">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="contact_id" property="contactId"/>
+        <result column="unread_count" property="unreadCount"/>
+        <result column="last_message_time" property="lastMessageTime"/>
+        <result column="last_message_content" property="lastMessageContent"/>
+    </resultMap>
+
+    <!-- 增加未读消息数（使用 INSERT ON DUPLICATE KEY UPDATE） -->
+    <insert id="incrementUnreadCount">
+        INSERT INTO private_chat_unread (user_id, contact_id, unread_count, last_message_time, last_message_content)
+        VALUES (#{userId}, #{contactId}, 1, #{lastMessageTime}, #{lastMessageContent})
+        ON DUPLICATE KEY UPDATE unread_count         = unread_count + 1,
+                                last_message_time    = #{lastMessageTime},
+                                last_message_content = #{lastMessageContent}
+    </insert>
+
+    <!-- 清零未读消息数 -->
+    <update id="clearUnreadCount">
+        UPDATE private_chat_unread
+        SET unread_count = 0
+        WHERE user_id = #{userId}
+          AND contact_id = #{contactId}
+    </update>
+
+    <!-- 查询单个会话的未读消息数 -->
+    <select id="getUnreadCount" resultType="java.lang.Integer">
+        SELECT unread_count
+        FROM private_chat_unread
+        WHERE user_id = #{userId}
+          AND contact_id = #{contactId}
+    </select>
+
+    <!-- 查询用户所有会话的未读消息记录 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT id, user_id, contact_id, unread_count, last_message_time, last_message_content
+        FROM private_chat_unread
+        WHERE user_id = #{userId}
+          AND unread_count > 0
+        ORDER BY last_message_time DESC
+    </select>
+
+    <!-- 查询用户的总未读消息数 -->
+    <select id="getTotalUnreadCount" resultType="java.lang.Integer">
+        SELECT COALESCE(SUM(unread_count), 0)
+        FROM private_chat_unread
+        WHERE user_id = #{userId}
+    </select>
+
+</mapper>

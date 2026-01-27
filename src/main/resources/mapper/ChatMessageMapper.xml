@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.ChatMessageMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.ChatMessage">
+        <id column="message_id" property="messageId"/>
+        <result column="meeting_id" property="meetingId"/>
+        <result column="message_type" property="messageType"/>
+        <result column="message_content" property="messageContent"/>
+        <result column="send_user_id" property="sendUserId"/>
+        <result column="send_user_nick_name" property="sendUserNickName"/>
+        <result column="send_time" property="sendTime"/>
+        <result column="receive_type" property="receiveType"/>
+        <result column="receive_user_id" property="receiveUserId"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_suffix" property="fileSuffix"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        message_id, meeting_id, message_type, message_content, send_user_id,
+        send_user_nick_name, send_time, receive_type, receive_user_id,
+        file_size, file_name, file_type, file_suffix, status
+    </sql>
+
+    <!-- 插入消息 -->
+    <insert id="insert">
+        INSERT INTO ${tableName} (message_id, meeting_id, message_type, message_content,
+                                  send_user_id, send_user_nick_name, send_time, receive_type,
+                                  receive_user_id, file_size, file_name, file_type, file_suffix, status)
+        VALUES (#{message.messageId}, #{message.meetingId}, #{message.messageType},
+                #{message.messageContent}, #{message.sendUserId}, #{message.sendUserNickName},
+                #{message.sendTime}, #{message.receiveType}, #{message.receiveUserId},
+                #{message.fileSize}, #{message.fileName}, #{message.fileType},
+                #{message.fileSuffix}, #{message.status})
+    </insert>
+
+    <!-- 根据消息ID查询 -->
+    <!-- status: 0=正在发送, 1=发送完毕, 其他值可能表示删除 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE message_id = #{messageId} AND status IN (0, 1)
+    </select>
+
+    <!-- 根据会议ID查询消息列表（分页） -->
+    <!-- status: 0=正在发送, 1=发送完毕 -->
+    <select id="selectByMeetingId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId} AND status IN (0, 1)
+        ORDER BY send_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计会议消息数量 -->
+    <select id="countByMeetingId" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId}
+          AND status IN (0, 1)
+    </select>
+
+    <!-- 更新消息 -->
+    <update id="updateById">
+        UPDATE ${tableName}
+        <set>
+            <if test="message.messageContent != null">
+                message_content = #{message.messageContent},
+            </if>
+            <if test="message.status != null">
+                status = #{message.status},
+            </if>
+            <if test="message.fileSize != null">
+                file_size = #{message.fileSize},
+            </if>
+            <if test="message.fileName != null">
+                file_name = #{message.fileName},
+            </if>
+            <if test="message.fileType != null">
+                file_type = #{message.fileType},
+            </if>
+            <if test="message.fileSuffix != null">
+                file_suffix = #{message.fileSuffix},
+            </if>
+        </set>
+        WHERE message_id = #{message.messageId}
+    </update>
+
+    <!-- 逻辑删除消息 -->
+    <update id="deleteById">
+        UPDATE ${tableName}
+        SET status = 1
+        WHERE message_id = #{messageId}
+    </update>
+
+    <!-- 查询指定消息ID之前的消息（加载更多历史消息） -->
+    <select id="selectBeforeMessageId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId}
+        AND status IN (0, 1)
+        AND message_id &lt; #{maxMessageId}
+        ORDER BY send_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据会议ID查询消息列表（带私聊消息过滤） -->
+    <!-- 返回群发消息(receive_type=0) + 与当前用户相关的私聊消息 -->
+    <select id="selectByMeetingIdWithPrivateFilter" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId}
+        AND status IN (0, 1)
+        AND (
+        receive_type = 0
+        OR (receive_type = 1 AND (send_user_id = #{currentUserId} OR receive_user_id = #{currentUserId}))
+        )
+        ORDER BY send_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计会议消息数量（带私聊消息过滤） -->
+    <select id="countByMeetingIdWithPrivateFilter" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId}
+          AND status IN (0, 1)
+          AND (
+            receive_type = 0
+                OR (receive_type = 1 AND (send_user_id = #{currentUserId} OR receive_user_id = #{currentUserId}))
+            )
+    </select>
+
+    <!-- 查询指定消息ID之前的消息（带私聊消息过滤） -->
+    <select id="selectBeforeMessageIdWithPrivateFilter" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE meeting_id = #{meetingId}
+        AND status IN (0, 1)
+        AND message_id &lt; #{maxMessageId}
+        AND (
+        receive_type = 0
+        OR (receive_type = 1 AND (send_user_id = #{currentUserId} OR receive_user_id = #{currentUserId}))
+        )
+        ORDER BY send_time DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

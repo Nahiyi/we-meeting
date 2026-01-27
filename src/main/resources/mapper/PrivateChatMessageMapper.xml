@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.clazs.easymeeting.mapper.PrivateChatMessageMapper">
+
+    <resultMap id="BaseResultMap" type="cn.clazs.easymeeting.entity.po.PrivateChatMessage">
+        <id column="message_id" property="messageId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="message_type" property="messageType"/>
+        <result column="message_content" property="messageContent"/>
+        <result column="send_user_id" property="sendUserId"/>
+        <result column="send_user_nick_name" property="sendUserNickName"/>
+        <result column="receive_user_id" property="receiveUserId"/>
+        <result column="send_time" property="sendTime"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_suffix" property="fileSuffix"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        message_id, session_id, message_type, message_content, send_user_id,
+        send_user_nick_name, receive_user_id, send_time, file_size, file_name,
+        file_type, file_suffix, status
+    </sql>
+
+    <!-- 插入消息 -->
+    <insert id="insert">
+        INSERT INTO ${tableName} (message_id, session_id, message_type, message_content,
+                                  send_user_id, send_user_nick_name, receive_user_id, send_time,
+                                  file_size, file_name, file_type, file_suffix, status)
+        VALUES (#{message.messageId}, #{message.sessionId}, #{message.messageType},
+                #{message.messageContent}, #{message.sendUserId}, #{message.sendUserNickName},
+                #{message.receiveUserId}, #{message.sendTime}, #{message.fileSize},
+                #{message.fileName}, #{message.fileType}, #{message.fileSuffix}, #{message.status})
+    </insert>
+
+    <!-- 根据消息ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE message_id = #{messageId}
+    </select>
+
+    <!-- 根据会话ID查询消息列表（分页，按发送时间倒序） -->
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE session_id = #{sessionId}
+        ORDER BY send_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计会话消息数量 -->
+    <select id="countBySessionId" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ${tableName}
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <!-- 查询指定消息ID之前的消息（加载更多历史消息） -->
+    <select id="selectBeforeMessageId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${tableName}
+        WHERE session_id = #{sessionId}
+        AND message_id &lt; #{maxMessageId}
+        ORDER BY send_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 更新消息状态 -->
+    <update id="updateStatus">
+        UPDATE ${tableName}
+        SET status = #{status}
+        WHERE message_id = #{messageId}
+    </update>
+
+</mapper>

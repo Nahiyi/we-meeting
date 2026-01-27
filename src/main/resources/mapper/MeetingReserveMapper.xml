@@ -114,20 +114,22 @@
         ORDER BY start_time DESC
     </select>
 
-    <!-- 查询用户今天的预约会议（创建的 + 被邀请的），使用 UNION 优化性能 -->
+    <!-- 查询用户今天的预约会议（创建的 + 被邀请的），使用范围查询优化索引 -->
     <select id="selectTodayReserves" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM meeting_reserve
         WHERE create_user_id = #{userId}
-        AND DATE(start_time) = CURDATE()
+        AND start_time >= CURDATE()
+        AND start_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
         UNION
         SELECT mr.meeting_id, mr.meeting_name, mr.join_type, mr.join_password, mr.duration,
         mr.start_time, mr.create_time, mr.create_user_id, mr.status, mr.real_meeting_id
         FROM meeting_reserve mr
         INNER JOIN meeting_reserve_member mrm ON mr.meeting_id = mrm.meeting_id
         WHERE mrm.invite_user_id = #{userId}
-        AND DATE(mr.start_time) = CURDATE()
+        AND mr.start_time >= CURDATE()
+        AND mr.start_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
         ORDER BY start_time ASC
     </select>
 

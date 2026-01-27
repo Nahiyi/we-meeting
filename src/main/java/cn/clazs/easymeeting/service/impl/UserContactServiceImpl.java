@@ -3,12 +3,14 @@ package cn.clazs.easymeeting.service.impl;
 import cn.clazs.easymeeting.entity.enums.ContactSearchStatus;
 import cn.clazs.easymeeting.entity.enums.UserContactApplyStatus;
 import cn.clazs.easymeeting.entity.enums.UserContactStatus;
+import cn.clazs.easymeeting.entity.po.PrivateChatUnread;
 import cn.clazs.easymeeting.entity.po.UserContact;
 import cn.clazs.easymeeting.entity.po.UserContactApply;
 import cn.clazs.easymeeting.entity.po.UserInfo;
 import cn.clazs.easymeeting.entity.vo.UserContactVO;
 import cn.clazs.easymeeting.entity.vo.UserInfoVoForSearch;
 import cn.clazs.easymeeting.exception.BusinessException;
+import cn.clazs.easymeeting.mapper.PrivateChatUnreadMapper;
 import cn.clazs.easymeeting.mapper.UserContactApplyMapper;
 import cn.clazs.easymeeting.mapper.UserContactMapper;
 import cn.clazs.easymeeting.mapper.UserMapper;
@@ -19,6 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -29,6 +34,7 @@ public class UserContactServiceImpl implements UserContactService {
     private final UserMapper userMapper;
     private final UserContactApplyMapper userContactApplyMapper;
     private final BizChannelContext bizChannelContext;
+    private final PrivateChatUnreadMapper privateChatUnreadMapper;
 
     @Override
     public UserContact addContact(UserContact userContact) {
@@ -185,12 +191,28 @@ public class UserContactServiceImpl implements UserContactService {
     @Override
     public List<UserContactVO> getNormalContactsWithNickName(String userId) {
         List<UserContactVO> contacts = userContactMapper.selectNormalContactsWithNickName(userId);
-        // 设置实时在线状态（通过 WebSocket 连接判断）
+
+        // 批量设置实时在线状态（优化：一次性获取所有在线用户ID）
+        Set<String> onlineUserIds = bizChannelContext.getOnlineUserIds();
+
+        // 获取所有未读消息记录
+        List<PrivateChatUnread> unreadList = privateChatUnreadMapper.selectByUserId(userId);
+        Map<String, PrivateChatUnread> unreadMap = unreadList.stream()
+                .collect(Collectors.toMap(PrivateChatUnread::getContactId, u -> u, (a, b) -> a));
+
         for (UserContactVO contact : contacts) {
-            boolean isOnline = bizChannelContext.getChannel(contact.getContactId()) != null;
-            contact.setOnline(isOnline);
+            contact.setOnline(onlineUserIds.contains(contact.getContactId()));
+
+            // 设置未读消息信息
+            PrivateChatUnread unread = unreadMap.get(contact.getContactId());
+            if (unread != null) {
+                contact.setUnreadCount(unread.getUnreadCount());
+                contact.setLastMessageTime(unread.getLastMessageTime());
+                contact.setLastMessageContent(unread.getLastMessageContent());
+            } else {
+                contact.setUnreadCount(0);
+            }
         }
         return contacts;
     }
-
 }

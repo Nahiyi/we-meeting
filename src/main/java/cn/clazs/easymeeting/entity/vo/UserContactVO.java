@@ -58,4 +58,19 @@ public class UserContactVO {
      * 是否在线（通过 WebSocket 连接状态判断，由 Service 层设置）
      */
     private Boolean online;
+
+    /**
+     * 未读消息数
+     */
+    private Integer unreadCount;
+
+    /**
+     * 最后消息时间
+     */
+    private Long lastMessageTime;
+
+    /**
+     * 最后消息内容预览
+     */
+    private String lastMessageContent;
 }
