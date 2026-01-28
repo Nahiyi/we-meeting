@@ -141,4 +141,12 @@
         WHERE real_meeting_id = #{realMeetingId}
     </select>
 
+    <select id="selectReservesToStart" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meeting_reserve
+        WHERE status = #{status}
+        AND start_time &lt;= #{now}
+    </select>
+
 </mapper>

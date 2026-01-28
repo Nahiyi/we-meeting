@@ -23,7 +23,6 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -157,6 +156,20 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
         redisComponent.updateUserTokenInfo(currentUser);
     }
 
+    @Override
+    public void createScheduledMeeting(MeetingInfo meetingInfo) {
+        meetingInfo.setCreateTime(LocalDateTime.now());
+        meetingInfo.setMeetingId(StringUtil.generateMeetingNo());
+        // 系统自动生成会议号
+        if (StringUtil.isEmpty(meetingInfo.getMeetingNo())) {
+            meetingInfo.setMeetingNo(StringUtil.generateMeetingNo());
+        }
+        // 状态：待开始
+        meetingInfo.setStatus(MeetingStatus.SCHEDULED.getStatus());
+        // 插入数据库
+        meetingInfoMapper.insert(meetingInfo);
+    }
+
     /**
      * 用户必须先通过 preJoinMeeting 验证，才能调用此接口
      * 用户敏感信息（userId、nickName、sex）从 token 获取，不信任前端传入
@@ -187,6 +200,9 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
 
         if (MeetingStatus.FINISHED.getStatus().equals(meetingInfo.getStatus())) {
             throw new BusinessException("会议已结束");
+        }
+        if (MeetingStatus.SCHEDULED.getStatus().equals(meetingInfo.getStatus())) {
+            throw new BusinessException("会议尚未开始");
         }
 
         // 检查加入者是不是创建者，是则其“会议身份”为“主持人”

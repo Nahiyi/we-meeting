@@ -50,6 +50,8 @@ public interface MeetingInfoService {
 
     void quickMeeting(MeetingInfo meetingInfo, String nickName);
 
+    void createScheduledMeeting(MeetingInfo meetingInfo);
+
     void joinMeeting(JoinMeetingDTO joinMeetingDto);
 
     String preJoinMeeting(String meetingNo, String nickName, String password);

@@ -12,7 +12,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum MeetingStatus {
     RUNNING(0, "会议进行中"),
-    FINISHED(1, "会议已结束");
+    FINISHED(1, "会议已结束"),
+    SCHEDULED(2, "会议待开始");
 
     @JSONField
     @JsonValue

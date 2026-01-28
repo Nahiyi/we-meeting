@@ -2,6 +2,7 @@ package cn.clazs.easymeeting.service.impl;
 
 import cn.clazs.easymeeting.entity.dto.UserTokenInfoDTO;
 import cn.clazs.easymeeting.entity.enums.MeetingReserveStatus;
+import cn.clazs.easymeeting.entity.enums.MeetingStatus;
 import cn.clazs.easymeeting.entity.po.MeetingInfo;
 import cn.clazs.easymeeting.entity.po.MeetingReserve;
 import cn.clazs.easymeeting.entity.po.MeetingReserveMember;
@@ -42,10 +43,24 @@ public class MeetingReserveServiceImpl implements MeetingReserveService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MeetingReserve createReserve(MeetingReserve meetingReserve, List<String> inviteUserIds) {
-        // 生成会议ID
+        // 1. 预先创建实际会议（MeetingInfo），其状态为 SCHEDULED
+        MeetingInfo meetingInfo = new MeetingInfo();
+        meetingInfo.setMeetingName(meetingReserve.getMeetingName());
+        meetingInfo.setJoinType(meetingReserve.getJoinType());
+        meetingInfo.setJoinPassword(meetingReserve.getJoinPassword());
+        meetingInfo.setCreateUserId(meetingReserve.getCreateUserId());
+        meetingInfo.setStartTime(meetingReserve.getStartTime());
+        if (meetingReserve.getDuration() != null) {
+            meetingInfo.setEndTime(meetingReserve.getStartTime().plusMinutes(meetingReserve.getDuration()));
+        }
+        meetingInfoService.createScheduledMeeting(meetingInfo);
+
+        // 2. 生成预约会议记录
         meetingReserve.setMeetingId(StringUtil.generateMeetingNo());
         meetingReserve.setCreateTime(LocalDateTime.now());
-        meetingReserve.setStatus(MeetingReserveStatus.NO_START.getStatus()); // 待开始
+        meetingReserve.setStatus(MeetingReserveStatus.NO_START.getStatus()); // 待开始-对应SCHEDULED
+        // 立刻关联 realMeetingId，使得可以查到一个真实可加入的会议号
+        meetingReserve.setRealMeetingId(meetingInfo.getMeetingId());
 
         meetingReserveMapper.insert(meetingReserve);
 
@@ -92,6 +107,18 @@ public class MeetingReserveServiceImpl implements MeetingReserveService {
         if (!existing.getCreateUserId().equals(userId)) {
             throw new BusinessException("只有创建者才能删除预约会议");
         }
+        // 如果关联了实际会议，且会议未开始（或根据业务需要），一并删除实际会议
+        String realMeetingId = existing.getRealMeetingId();
+        if (StringUtil.isNotEmpty(realMeetingId)) {
+            // 尝试删除实际会议，忽略可能的异常（如会议已删除）
+            try {
+                meetingInfoService.deleteMeeting(realMeetingId);
+                log.info("级联删除实际会议成功: realMeetingId={}", realMeetingId);
+            } catch (Exception e) {
+                log.warn("级联删除实际会议失败或会议不存在: realMeetingId={}", realMeetingId);
+            }
+        }
+
         // 先删除邀请成员
         meetingReserveMemberMapper.deleteByMeetingId(meetingId);
         // 再删除预约会议
@@ -108,6 +135,20 @@ public class MeetingReserveServiceImpl implements MeetingReserveService {
         if (!existing.getCreateUserId().equals(userId)) {
             throw new BusinessException("只有创建者才能取消预约会议");
         }
+        
+        // 如果关联了实际会议，且会议未开始，一并删除实际会议
+        String realMeetingId = existing.getRealMeetingId();
+        if (StringUtil.isNotEmpty(realMeetingId)) {
+            try {
+                // 直接物理删除未开始的会议，或者也可以选择将其状态更新为取消（如果MeetingInfo有取消状态的话）
+                // 目前MeetingInfo没有CANCELLED状态，且SCHEDULED状态的会议未产生实质数据，物理删除是合适的
+                meetingInfoService.deleteMeeting(realMeetingId);
+                log.info("级联删除实际会议成功: realMeetingId={}", realMeetingId);
+            } catch (Exception e) {
+                log.warn("级联删除实际会议失败或会议不存在: realMeetingId={}", realMeetingId);
+            }
+        }
+
         existing.setStatus(MeetingReserveStatus.CANCELLED.getStatus()); // 已取消
         meetingReserveMapper.updateById(existing);
         log.info("取消预约会议成功: meetingId={}", meetingId);
@@ -204,32 +245,41 @@ public class MeetingReserveServiceImpl implements MeetingReserveService {
             throw new BusinessException("只有创建人才能开始会议");
         }
 
-        // 3. 如果已有 realMeetingId，直接返回（幂等性）
-        if (StringUtil.isNotEmpty(reserve.getRealMeetingId())) {
-            log.info("预约会议已开始，返回已有的 realMeetingId: {}", reserve.getRealMeetingId());
-            // 设置 currentMeetingId 到 token
-            currentUser.setCurrentMeetingId(reserve.getRealMeetingId());
-            currentUser.setCurrentNickName(currentUser.getNickName());
-            redisComponent.updateUserTokenInfo(currentUser);
-            return reserve.getRealMeetingId();
+        String realMeetingId = reserve.getRealMeetingId();
+
+        // 3. 处理开始逻辑（状态的一并设置：变为已开始/进行中）
+        if (StringUtil.isNotEmpty(realMeetingId)) {
+            // 已有 realMeetingId
+            if (!MeetingReserveStatus.RUNNING.getStatus().equals(reserve.getStatus())) {
+                // 如果未开始，则更新状态为进行中
+                // Update MeetingInfo
+                MeetingInfo meetingInfo = new MeetingInfo();
+                meetingInfo.setMeetingId(realMeetingId);
+                meetingInfo.setStatus(MeetingStatus.RUNNING.getStatus());
+                meetingInfoService.updateMeeting(meetingInfo);
+
+                // Update MeetingReserve
+                reserve.setStatus(MeetingReserveStatus.RUNNING.getStatus());
+                meetingReserveMapper.updateById(reserve);
+            }
+        } else {
+            // @Deprecated：无 realMeetingId，创建实际会议（复用 quickMeeting 逻辑）
+            MeetingInfo meetingInfo = new MeetingInfo();
+            meetingInfo.setMeetingName(reserve.getMeetingName());
+            meetingInfo.setJoinType(reserve.getJoinType());
+            meetingInfo.setJoinPassword(reserve.getJoinPassword());
+            meetingInfo.setCreateUserId(currentUser.getUserId());
+
+            meetingInfoService.quickMeeting(meetingInfo, currentUser.getNickName());
+            realMeetingId = meetingInfo.getMeetingId();
+
+            // 更新预约会议的 realMeetingId 和 status
+            reserve.setRealMeetingId(realMeetingId);
+            reserve.setStatus(MeetingReserveStatus.RUNNING.getStatus()); // 进行中
+            meetingReserveMapper.updateById(reserve);
         }
 
-        // 4. 创建实际会议（复用 quickMeeting 逻辑）
-        MeetingInfo meetingInfo = new MeetingInfo();
-        meetingInfo.setMeetingName(reserve.getMeetingName());
-        meetingInfo.setJoinType(reserve.getJoinType());
-        meetingInfo.setJoinPassword(reserve.getJoinPassword());
-        meetingInfo.setCreateUserId(currentUser.getUserId());
-
-        meetingInfoService.quickMeeting(meetingInfo, currentUser.getNickName());
-        String realMeetingId = meetingInfo.getMeetingId();
-
-        // 5. 更新预约会议的 realMeetingId 和 status
-        reserve.setRealMeetingId(realMeetingId);
-        reserve.setStatus(MeetingReserveStatus.RUNNING.getStatus()); // 进行中
-        meetingReserveMapper.updateById(reserve);
-
-        // 6. 设置 currentMeetingId 到 token
+        // 4. 设置 currentMeetingId 到 token
         currentUser.setCurrentMeetingId(realMeetingId);
         currentUser.setCurrentNickName(currentUser.getNickName());
         redisComponent.updateUserTokenInfo(currentUser);
@@ -246,9 +296,11 @@ public class MeetingReserveServiceImpl implements MeetingReserveService {
             throw new BusinessException("预约会议不存在");
         }
 
-        // 2. 验证会议是否已开始 TODO 定时任务实现自动start（仅做状态改变即可）
-        if (StringUtil.isEmpty(reserve.getRealMeetingId())) {
-            throw new BusinessException("会议尚未开始，请等待创建人开始会议");
+        // 2. 验证会议是否已开始
+        // 必须有 realMeetingId 且 状态为进行中
+        if (StringUtil.isEmpty(reserve.getRealMeetingId())
+                || MeetingReserveStatus.NO_START.getStatus().equals(reserve.getStatus())) {
+            throw new BusinessException("会议尚未开始");
         }
 
         // 3. 设置 currentMeetingId 到 token

@@ -54,4 +54,9 @@ public interface MeetingReserveMapper {
      * 根据实际会议ID查询预约会议
      */
     MeetingReserve selectByRealMeetingId(@Param("realMeetingId") String realMeetingId);
+
+    /**
+     * 查询需要自动开始的会议
+     */
+    List<MeetingReserve> selectReservesToStart(@Param("status") Integer status, @Param("now") String now);
 }
