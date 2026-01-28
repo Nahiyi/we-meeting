@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * 聊天消息服务实现类
+ * 会议内部 - 聊天消息服务实现类
  * 自动处理分表路由、消息ID生成、时间戳设置等
  */
 @Slf4j

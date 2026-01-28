@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 私聊消息服务实现类
+ * 会议外 - 私聊消息服务实现类
  * 处理好友之间的一对一私聊消息
  */
 @Service
@@ -165,8 +165,10 @@ public class PrivateChatServiceImpl implements PrivateChatService {
         if (receiverContact != null && UserContactStatus.BLACK.getStatus().equals(receiverContact.getStatus())) {
             throw new BusinessException("对方已将你拉黑，无法发送消息");
         }
+        if (receiverContact != null && UserContactStatus.DEL.getStatus().equals(receiverContact.getStatus())) {
+            throw new BusinessException("对方已将你删除，无法发送消息");
+        }
     }
-
 
     /**
      * 获取消息预览（用于未读消息显示）
