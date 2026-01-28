@@ -53,7 +53,7 @@ public class MeetingInfoServiceImpl implements MeetingInfoService {
     @Resource
     private UserContactMapper userContactMapper;
 
-    @Qualifier("redisMessageHandler")
+    // @Qualifier("redisMessageHandler")
     @Autowired
     private MessageHandler messageHandler;
 

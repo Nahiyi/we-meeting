@@ -55,6 +55,8 @@ spring:
     # rabbitmq配置
     host: localhost
     port: 5672
+    username: admin
+    password: admin
 
 # MyBatis配置
 mybatis:
@@ -71,7 +73,7 @@ mybatis:
 messaging:
   handle:
     # 消息处理方案 可选 rabbitmq 或 redis
-    channel: redis
+    channel: rabbitmq
 
 project:
   # 项目文件、日志等目录
